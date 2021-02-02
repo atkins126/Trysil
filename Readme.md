@@ -16,11 +16,14 @@ That's why I called **Trysil** my **ORM**.
 
 ***Trysil Operation ORM***
 
+And that's why I decided to write an **ORM**: _"The beautiful thing about learning is nobody can take it away from you"_
+
 For further information:
 
 - [Classes](https://github.com/davidlastrucci/Trysil/blob/master/Docs/Classes.md)
 - [Attributes](https://github.com/davidlastrucci/Trysil/blob/master/Docs/Attributes.md)
-- [Sample](https://github.com/davidlastrucci/Trysil/blob/master/Docs/Sample.md)
+- [Simple sample](https://github.com/davidlastrucci/Trysil/blob/master/Docs/Sample.md)
+- [Getting started](https://github.com/davidlastrucci/Trysil/blob/master/Docs/GettingStarted.md)
 
 ---
 <p>

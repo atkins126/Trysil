@@ -21,7 +21,9 @@ uses
 
   Trysil.Exceptions,
   Trysil.Classes,
+  Trysil.Events.Abstract,
   Trysil.Attributes,
+  Trysil.Events.Attributes,
   Trysil.Cache,
   Trysil.Generics.Collections,
   Trysil.Rtti;
@@ -133,6 +135,27 @@ type
     function GetEnumerator(): TTListEnumerator<TTRelationMap>;
   end;
 
+{ TTEventsMap }
+
+  TTEventsMap = class
+  strict private
+    FInsertEventClass: TTEventClass;
+    FUpdateEventClass: TTEventClass;
+    FDeleteEventClass: TTEventClass;
+
+    procedure SetInsertTypeInfo(const AAttribute: TEventAttribute);
+    procedure SetUpdateTypeInfo(const AAttribute: TEventAttribute);
+    procedure SetDeleteTypeInfo(const AAttribute: TEventAttribute);
+  private // internal
+    procedure SetEvent(const AAttribute: TEventAttribute);
+  public
+    constructor Create;
+
+    property InsertEventClass: TTEventClass read FInsertEventClass;
+    property UpdateEventClass: TTEventClass read FUpdateEventClass;
+    property DeleteEventClass: TTEventClass read FDeleteEventClass;
+  end;
+
 { TTTableMap }
 
   TTTableMap = class
@@ -147,6 +170,7 @@ type
     FColumns: TTColumnsMap;
     FDetailColumns: TTDetailColumnsMap;
     FRelations: TTRelationsMap;
+    FEvents: TTEventsMap;
 
     procedure SetTableName(const AName: String);
     procedure SetSequenceName(const AName: String);
@@ -178,6 +202,7 @@ type
     property Columns: TTColumnsMap read FColumns;
     property DetailColums: TTDetailColumnsMap read FDetailColumns;
     property Relations: TTRelationsMap read FRelations;
+    property Events: TTEventsMap read FEvents;
   end;
 
 { TTMapper }
@@ -205,6 +230,9 @@ resourcestring
   SDuplicateSequenceAttribute = 'Duplicate TSequence Attribute.';
   SDuplicatePrimaryKeyAttribute = 'Duplicate TPrimaryKey Attribute.';
   SDuplicateVersionColumnAttribute = 'Duplicate TVersionColumn Attribute.';
+  SInsertEventAttribute = 'Duplicate TInsertEventAttribute Attribute.';
+  SUpdateEventAttribute = 'Duplicate TUpdateEventAttribute Attribute.';
+  SDeleteEventAttribute = 'Duplicate TDeleteEventAttribute Attribute.';
 
 { TTColumnMap }
 
@@ -354,6 +382,47 @@ begin
   result := TTListEnumerator<TTRelationMap>.Create(FRelations);
 end;
 
+{ TTEventsMap }
+
+constructor TTEventsMap.Create;
+begin
+  inherited Create;
+  FInsertEventClass := nil;
+  FUpdateEventClass := nil;
+  FDeleteEventClass := nil;
+end;
+
+procedure TTEventsMap.SetInsertTypeInfo(const AAttribute: TEventAttribute);
+begin
+  if Assigned(FInsertEventClass) then
+    raise ETException.Create(SInsertEventAttribute);
+  FInsertEventClass := AAttribute.EventClass;
+end;
+
+procedure TTEventsMap.SetUpdateTypeInfo(const AAttribute: TEventAttribute);
+begin
+  if Assigned(FUpdateEventClass) then
+    raise ETException.Create(SUpdateEventAttribute);
+  FUpdateEventClass := AAttribute.EventClass;
+end;
+
+procedure TTEventsMap.SetDeleteTypeInfo(const AAttribute: TEventAttribute);
+begin
+  if Assigned(FDeleteEventClass) then
+    raise ETException.Create(SDeleteEventAttribute);
+  FDeleteEventClass := AAttribute.EventClass;
+end;
+
+procedure TTEventsMap.SetEvent(const AAttribute: TEventAttribute);
+begin
+  if AAttribute is TInsertEventAttribute then
+    SetInsertTypeInfo(AAttribute)
+  else if AAttribute is TUpdateEventAttribute then
+    SetUpdateTypeInfo(AAttribute)
+  else if AAttribute is TDeleteEventAttribute then
+    SetDeleteTypeInfo(AAttribute);
+end;
+
 { TTTableMap }
 
 constructor TTTableMap.Create(
@@ -370,10 +439,12 @@ begin
   FColumns := TTColumnsMap.Create;
   FDetailColumns := TTDetailColumnsMap.Create;
   FRelations := TTRelationsMap.Create;
+  FEvents := TTEventsMap.Create;
 end;
 
 destructor TTTableMap.Destroy;
 begin
+  FEvents.Free;
   FRelations.Free;
   FDetailColumns.Free;
   FColumns.Free;
@@ -392,16 +463,16 @@ end;
 
 procedure TTTableMap.SetTableName(const AName: String);
 begin
-    if not FName.IsEmpty then
-      raise ETException.Create(SDuplicateTableAttribute);
-    FName := AName;
+  if not FName.IsEmpty then
+    raise ETException.Create(SDuplicateTableAttribute);
+  FName := AName;
 end;
 
 procedure TTTableMap.SetSequenceName(const AName: String);
 begin
-    if not FSequenceName.IsEmpty then
-      raise ETException.Create(SDuplicateSequenceAttribute);
-    FSequenceName := AName;
+  if not FSequenceName.IsEmpty then
+    raise ETException.Create(SDuplicateSequenceAttribute);
+  FSequenceName := AName;
 end;
 
 procedure TTTableMap.InitializeTable(const AType: TRttiType);
@@ -418,7 +489,9 @@ begin
         TTRelationMap.Create(
           TRelationAttribute(LAttribute).TableName,
           TRelationAttribute(LAttribute).ColumnName,
-          TRelationAttribute(LAttribute).IsCascade));
+          TRelationAttribute(LAttribute).IsCascade))
+    else if LAttribute is TEventAttribute then
+      FEvents.SetEvent(TEventAttribute(LAttribute));
 end;
 
 procedure TTTableMap.InitializeColumns(const AType: TRttiType);

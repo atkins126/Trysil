@@ -23,7 +23,8 @@ uses
   Trysil.Exceptions,
   Trysil.Metadata,
   Trysil.Mapping,
-  Trysil.Data.Columns;
+  Trysil.Data.Columns,
+  Trysil.Events.Abstract;
 
 type
 
@@ -62,7 +63,8 @@ type
     constructor Create(
       const ATableMap: TTTableMap; const ATableMetadata: TTTableMetadata);
 
-    procedure Execute(const AEntity: TObject); virtual; abstract;
+    procedure Execute(
+      const AEntity: TObject; const AEvent: TTEvent); virtual; abstract;
   end;
 
 { TTDataInsertCommand }
@@ -81,6 +83,7 @@ type
 
   TTDataConnection = class abstract(TTMetadataProvider)
   strict protected
+    function GetInTransaction: Boolean; virtual; abstract;
     function SelectCount(
       const ATableMap: TTTableMap;
       const ATableName: String;
@@ -113,6 +116,8 @@ type
     function CreateDeleteCommand(
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata): TTDataDeleteCommand; virtual; abstract;
+
+    property InTransaction: Boolean read GetInTransaction;
   end;
 
 { resourcestring }
