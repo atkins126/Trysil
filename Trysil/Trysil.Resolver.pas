@@ -21,7 +21,6 @@ uses
   Trysil.Mapping,
   Trysil.Metadata,
   Trysil.Data,
-  Trysil.Context.Abstract,
   Trysil.Events.Abstract,
   Trysil.Events.Factory;
 
@@ -31,9 +30,16 @@ type
 
   TTResolver = class
   strict private
-    FContext: TTAbstractContext;
+    FConnection: TTDataConnection;
+    FContext: TObject;
+    FMetadata: TTMetadata;
+    FMapper: TTMapper;
   public
-    constructor Create(const AContext: TTAbstractContext);
+    constructor Create(
+      const AConnection: TTDataConnection;
+      const AContext: TObject;
+      const AMetadata: TTMetadata;
+      const AMapper: TTMapper);
 
     procedure Insert<T: class>(const AEntity: T);
     procedure Update<T: class>(const AEntity: T);
@@ -44,10 +50,17 @@ implementation
 
 { TTResolver }
 
-constructor TTResolver.Create(const AContext: TTAbstractContext);
+constructor TTResolver.Create(
+  const AConnection: TTDataConnection;
+  const AContext: TObject;
+  const AMetadata: TTMetadata;
+  const AMapper: TTMapper);
 begin
   inherited Create;
+  FConnection := AConnection;
   FContext := AContext;
+  FMetadata := AMetadata;
+  FMapper := AMapper;
 end;
 
 procedure TTResolver.Insert<T>(const AEntity: T);
@@ -57,10 +70,9 @@ var
   LCommand: TTDataInsertCommand;
   LEvent: TTEvent;
 begin
-  LTableMap := FContext.Mapper.Load<T>();
-  LTableMetadata := FContext.Metadata.Load<T>();
-  LCommand := FContext.Connection.CreateInsertCommand(
-    LTableMap, LTableMetadata);
+  LTableMap := FMapper.Load<T>();
+  LTableMetadata := FMetadata.Load<T>();
+  LCommand := FConnection.CreateInsertCommand(LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.InsertEventClass, FContext, AEntity);
@@ -83,10 +95,9 @@ var
   LCommand: TTDataUpdateCommand;
   LEvent: TTEvent;
 begin
-  LTableMap := FContext.Mapper.Load<T>();
-  LTableMetadata := FContext.Metadata.Load<T>();
-  LCommand := FContext.Connection.CreateUpdateCommand(
-    LTableMap, LTableMetadata);
+  LTableMap := FMapper.Load<T>();
+  LTableMetadata := FMetadata.Load<T>();
+  LCommand := FConnection.CreateUpdateCommand(LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.UpdateEventClass, FContext, AEntity);
@@ -111,11 +122,10 @@ var
   LCommand: TTDataDeleteCommand;
   LEvent: TTEvent;
 begin
-  LTableMap := FContext.Mapper.Load<T>();
-  FContext.Connection.CheckRelations(LTableMap, AEntity);
-  LTableMetadata := FContext.Metadata.Load<T>();
-  LCommand := FContext.Connection.CreateDeleteCommand(
-    LTableMap, LTableMetadata);
+  LTableMap := FMapper.Load<T>();
+  FConnection.CheckRelations(LTableMap, AEntity);
+  LTableMetadata := FMetadata.Load<T>();
+  LCommand := FConnection.CreateDeleteCommand(LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.DeleteEventClass, FContext, AEntity);

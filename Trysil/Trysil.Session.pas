@@ -19,9 +19,26 @@ uses
 
   Trysil.Exceptions,
   Trysil.Generics.Collections,
-  Trysil.Context;
+  Trysil.Data,
+  Trysil.Provider,
+  Trysil.Resolver;
 
 type
+
+{ TTClonedEntities<T> }
+
+  TTClonedEntities<T: class, constructor> = class
+  strict private
+    FProvider: TTProvider;
+    FEntities: TObjectDictionary<T, T>;
+  private // internal
+    function CloneEntity(const AEntity: T): T;
+    procedure FreeClone(const AClone: T);
+    function GetOriginalEntity(const AClone: T): T;
+  public
+    constructor Create(const AProvider: TTProvider);
+    destructor Destroy; override;
+  end;
 
 { TTSessionState }
 
@@ -31,27 +48,36 @@ type
 
   TTSession<T: class, constructor> = class
   strict private
-    FContext: TTContext;
+    FConnection: TTDataConnection;
+    FProvider: TTProvider;
+    FResolver: TTResolver;
     FOriginalEntities: TList<T>;
 
     FApplied: Boolean;
+    FCloned: TTClonedEntities<T>;
     FClonedEntities: TList<T>;
     FAllEntities: TList<T>;
     FEntities: TTList<T>;
     FEntityStates: TDictionary<T, TTSessionState>;
 
     procedure CloneEntities;
-    function GetEntityState(const AEntity: T): TTSessionState;
+    function GetEntityState(const AClone: T): TTSessionState;
     procedure InternalApplyChanges;
   public
-    constructor Create(const AContext: TTContext; const AList: TList<T>);
+    constructor Create(
+      const AConnection: TTDataConnection;
+      const AProvider: TTProvider;
+      const AResolver: TTResolver;
+      const AList: TList<T>);
     destructor Destroy; override;
 
     procedure AfterConstruction; override;
 
+    function GetOriginalEntity(const AClone: T): T;
+
     procedure Insert(const AEntity: T);
-    procedure Update(const AEntity: T);
-    procedure Delete(const AEntity: T);
+    procedure Update(const AClone: T);
+    procedure Delete(const AClone: T);
 
     procedure ApplyChanges;
 
@@ -60,22 +86,66 @@ type
 
 resourcestring
   SClonedEntity = 'Can not insert a cloned entity: "%s".';
-  SNotValidEntity = 'Not valid entity: "%s".';
-  SDeletedEntity = 'Entity "%s" was deleted.';
+  SNotValidEntity = 'Not valid cloned entity: "%s".';
+  SDeletedEntity = 'Cloned entity "%s" was deleted.';
   SSessionNotTwice = 'Session can not be used twice.';
 
 implementation
 
+{ TTClonedEntities<T> }
+
+constructor TTClonedEntities<T>.Create(const AProvider: TTProvider);
+begin
+  inherited Create;
+  FProvider := AProvider;
+  FEntities := TObjectDictionary<T, T>.Create([doOwnsKeys]);
+end;
+
+destructor TTClonedEntities<T>.Destroy;
+begin
+  FEntities.Free;
+  inherited Destroy;
+end;
+
+function TTClonedEntities<T>.CloneEntity(const AEntity: T): T;
+begin
+  result := FProvider.CloneEntity<T>(AEntity);
+  try
+    FEntities.Add(result, AEntity);
+  except
+    result.Free;
+    raise;
+  end;
+end;
+
+procedure TTClonedEntities<T>.FreeClone(const AClone: T);
+begin
+  if FEntities.ContainsKey(AClone) then
+    FEntities.Remove(AClone);
+end;
+
+function TTClonedEntities<T>.GetOriginalEntity(const AClone: T): T;
+begin
+  result := nil;
+  FEntities.TryGetValue(AClone, result);
+end;
+
 { TTSession<T> }
 
 constructor TTSession<T>.Create(
-  const AContext: TTContext; const AList: TList<T>);
+  const AConnection: TTDataConnection;
+  const AProvider: TTProvider;
+  const AResolver: TTResolver;
+  const AList: TList<T>);
 begin
   inherited Create;
-  FContext := AContext;
+  FConnection := AConnection;
+  FProvider := AProvider;
+  FResolver := AResolver;
   FOriginalEntities := AList;
 
   FApplied := False;
+  FCloned := TTClonedEntities<T>.Create(FProvider);
   FClonedEntities := TList<T>.Create;
   FEntities := TTList<T>.Create;
   FAllEntities := TList<T>.Create;
@@ -83,16 +153,12 @@ begin
 end;
 
 destructor TTSession<T>.Destroy;
-var
-  LClone: T;
 begin
   FEntityStates.Free;
   FAllEntities.Free;
   FEntities.Free;
-  for LClone in FClonedEntities do
-    FContext.FreeClone<T>(LClone);
-
   FClonedEntities.Free;
+  FCloned.Free;
   inherited Destroy;
 end;
 
@@ -109,23 +175,28 @@ begin
   if Assigned(FOriginalEntities) then
     for LEntity in FOriginalEntities do
     begin
-      LClone := FContext.CloneEntity<T>(LEntity);
+      LClone := FCloned.CloneEntity(LEntity);
       try
         FEntities.Add(LClone);
         FAllEntities.Add(LClone);
         FEntityStates.Add(LClone, TTSessionState.Original);
         FClonedEntities.Add(LClone);
       except
-        FContext.FreeClone<T>(LClone);
+        FCloned.FreeClone(LClone);
         raise;
       end;
     end;
 end;
 
-function TTSession<T>.GetEntityState(const AEntity: T): TTSessionState;
+function TTSession<T>.GetEntityState(const AClone: T): TTSessionState;
 begin
-  if not FEntityStates.TryGetValue(AEntity, result) then
-    raise ETException.CreateFmt(SNotValidEntity, [AEntity.ToString()]);
+  if not FEntityStates.TryGetValue(AClone, result) then
+    raise ETException.CreateFmt(SNotValidEntity, [AClone.ToString()]);
+end;
+
+function TTSession<T>.GetOriginalEntity(const AClone: T): T;
+begin
+  result := FCloned.GetOriginalEntity(AClone);
 end;
 
 procedure TTSession<T>.Insert(const AEntity: T);
@@ -137,27 +208,27 @@ begin
   FEntityStates.Add(AEntity, TTSessionState.Inserted);
 end;
 
-procedure TTSession<T>.Update(const AEntity: T);
+procedure TTSession<T>.Update(const AClone: T);
 var
   LState: TTSessionState;
 begin
-  LState := GetEntityState(AEntity);
+  LState := GetEntityState(AClone);
   if LState = TTSessionState.Deleted then
-    raise ETException.CreateFmt(SDeletedEntity, [AEntity.ToString()])
+    raise ETException.CreateFmt(SDeletedEntity, [AClone.ToString()])
   else if LState = TTSessionState.Original then
-    FEntityStates.AddOrSetValue(AEntity, TTSessionState.Updated);
+    FEntityStates.AddOrSetValue(AClone, TTSessionState.Updated);
 end;
 
-procedure TTSession<T>.Delete(const AEntity: T);
+procedure TTSession<T>.Delete(const AClone: T);
 var
   LState: TTSessionState;
 begin
-  LState := GetEntityState(AEntity);
+  LState := GetEntityState(AClone);
   if LState = TTSessionState.Inserted then
-    FEntityStates.AddOrSetValue(AEntity, TTSessionState.Original)
+    FEntityStates.AddOrSetValue(AClone, TTSessionState.Original)
   else
-    FEntityStates.AddOrSetValue(AEntity, TTSessionState.Deleted);
-  FEntities.Remove(AEntity);
+    FEntityStates.AddOrSetValue(AClone, TTSessionState.Deleted);
+  FEntities.Remove(AClone);
 end;
 
 procedure TTSession<T>.InternalApplyChanges;
@@ -170,13 +241,13 @@ begin
     LState := GetEntityState(LEntity);
     case LState of
       TTSessionState.Inserted:
-        FContext.Insert<T>(LEntity);
+        FResolver.Insert<T>(LEntity);
 
       TTSessionState.Updated:
-        FContext.Update<T>(LEntity);
+        FResolver.Update<T>(LEntity);
 
       TTSessionState.Deleted:
-        FContext.Delete<T>(LEntity);
+        FResolver.Delete<T>(LEntity);
     end;
   end;
 end;
@@ -188,16 +259,16 @@ begin
   if FApplied then
     raise ETException.Create(SSessionNotTwice);
 
-  LLocalTransaction := not FContext.InTransaction;
+  LLocalTransaction := not FConnection.InTransaction;
   if LLocalTransaction then
-    FContext.StartTransaction;
+    FConnection.StartTransaction;
   try
     InternalApplyChanges;
     if LLocalTransaction then
-      FContext.CommitTransaction;
+      FConnection.CommitTransaction;
   except
     if LLocalTransaction then
-      FContext.RollbackTransaction;
+      FConnection.RollbackTransaction;
     raise;
   end;
 

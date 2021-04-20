@@ -33,15 +33,16 @@ type
     procedure SetID(const AID: TTPrimaryKey);
   strict protected
     FContext: TTContext;
+    FMapper: TTMapper;
     FID: TTPrimaryKey;
     FColumnName: String;
 
     procedure NotifyChangedID; virtual; abstract;
   public
     constructor Create(
-      const AContext: TTContext; const AColumnName: String); virtual;
-
-    procedure AfterConstruction; override;
+      const AContext: TTContext;
+      const AMapper: TTMapper;
+      const AColumnName: String); virtual;
 
     property ID: TTPrimaryKey read FID write SetID;
   end;
@@ -58,7 +59,9 @@ type
     procedure NotifyChangedID; override;
   public
     constructor Create(
-      const AContext: TTContext; const AColumnName: String); override;
+      const AContext: TTContext;
+      const AMapper: TTMapper;
+      const AColumnName: String); override;
 
     property Entity: T read GetEntity write SetEntity;
   end;
@@ -74,7 +77,9 @@ type
     procedure NotifyChangedID; override;
   public
     constructor Create(
-      const AContext: TTContext; const AColumnName: String); override;
+      const AContext: TTContext;
+      const AMapper: TTMapper;
+      const AColumnName: String); override;
     destructor Destroy; override;
 
     property List: TTList<T> read GetList;
@@ -85,17 +90,14 @@ implementation
 { TTAbstractLazy<T> }
 
 constructor TTAbstractLazy<T>.Create(
-  const AContext: TTContext; const AColumnName: String);
+  const AContext: TTContext;
+  const AMapper: TTMapper;
+  const AColumnName: String);
 begin
   inherited Create;
   FContext := AContext;
+  FMapper := AMapper;
   FColumnName := AColumnName;
-end;
-
-procedure TTAbstractLazy<T>.AfterConstruction;
-begin
-  inherited AfterConstruction;
-  FContext.AddToOwnership<TTAbstractLazy<T>>(Self);
 end;
 
 procedure TTAbstractLazy<T>.SetID(const AID: TTPrimaryKey);
@@ -110,9 +112,11 @@ end;
 { TTLazy<T> }
 
 constructor TTLazy<T>.Create(
-  const AContext: TTContext; const AColumnName: String);
+  const AContext: TTContext;
+  const AMapper: TTMapper;
+  const AColumnName: String);
 begin
-  inherited Create(AContext, AColumnName);
+  inherited Create(AContext, AMapper, AColumnName);
   FEntity := nil;
 end;
 
@@ -136,7 +140,7 @@ begin
   if FEntity <> AEntity then
   begin
     FEntity := AEntity;
-    LTableMap := FContext.Mapper.Load<T>();
+    LTableMap := FMapper.Load<T>();
     if Assigned(LTableMap.PrimaryKey) then
     begin
       LValue := LTableMap.PrimaryKey.Member.GetValue(FEntity);
@@ -148,9 +152,11 @@ end;
 { TTLazyList<T> }
 
 constructor TTLazyList<T>.Create(
-  const AContext: TTContext; const AColumnName: String);
+  const AContext: TTContext;
+  const AMapper: TTMapper;
+  const AColumnName: String);
 begin
-  inherited Create(AContext, AColumnName);
+  inherited Create(AContext, AMapper, AColumnName);
   FList := nil;
 end;
 
