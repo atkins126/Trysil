@@ -18,6 +18,7 @@ uses
   System.SysUtils,
   System.Variants,
   System.Classes,
+  System.IOUtils,
   System.ImageList,
   Vcl.Graphics,
   Vcl.Controls,
@@ -32,12 +33,12 @@ uses
   FireDAC.VCLUI.Wait,
   Trysil.Filter,
   Trysil.Data,
-  Trysil.Data.FireDAC.SqlServer,
+  Trysil.Data.FireDAC.SQLite,
   Trysil.Context,
   Trysil.Generics.Collections,
   Trysil.Vcl.ListView,
 
-  Demo.Config,
+  Demo.DatabaseBuilder,
   Demo.Model,
   Demo.ListView,
   Demo.EditDialog;
@@ -67,7 +68,7 @@ type
     procedure DeleteButtonClick(Sender: TObject);
     procedure SearchTextboxInvokeSearch(Sender: TObject);
   strict private
-    FConfig: TConfig;
+    FCreateDatabase: Boolean;
     FConnection: TTDataConnection;
     FContext: TTContext;
     FMasterData: TTList<TTMasterData>;
@@ -94,20 +95,24 @@ implementation
 { TMainForm }
 
 constructor TMainForm.Create(AOwner: TComponent);
+const
+  DatabaseName: String = 'Test.db';
 var
-  LConnection: TConnectionConfig;
+  LParameters: TStrings;
 begin
   inherited Create(AOwner);
-  FConfig := TConfig.Create;
-  for LConnection in FConfig.Connections do
-    TTDataSqlServerConnection.RegisterConnection(
-      LConnection.Name,
-      LConnection.Server,
-      LConnection.Username,
-      LConnection.Password,
-      LConnection.DatabaseName);
+  FCreateDatabase := not TFile.Exists(DatabaseName);
 
-  FConnection := TTDataSqlServerConnection.Create('Test');
+  LParameters := TStringList.Create;
+  try
+    LParameters.Add(Format('Database=%s', [DatabaseName]));
+    LParameters.Add('SharedCache=False');
+    LParameters.Add('LockingMode=Normal');
+    TTDataSQLiteConnection.RegisterConnection('Test', LParameters);
+  finally
+    LParameters.Free;
+  end;
+  FConnection := TTDataSQLiteConnection.Create('Test');
   FContext := TTContext.Create(FConnection);
 
   FMasterData := TTList<TTMasterData>.Create;
@@ -120,13 +125,14 @@ begin
   FMasterData.Free;
   FContext.Free;
   FConnection.Free;
-  FConfig.Free;
   inherited Destroy;
 end;
 
 procedure TMainForm.AfterConstruction;
 begin
   inherited AfterConstruction;
+  if FCreateDatabase then
+    TDatabaseBuilder.BuildDatabase(FConnection);
   FMasterDataListView.SmallImages := ImageList;
   FMasterDataListView.OnItemChanged := MasterDataListViewItemChanged;
   FMasterDataListView.OnDblClick := MasterDataListViewOnDblClick;

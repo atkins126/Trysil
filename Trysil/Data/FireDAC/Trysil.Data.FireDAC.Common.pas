@@ -21,12 +21,7 @@ uses
   FireDAC.Stan.Intf,
   FireDAC.Stan.Pool,
   FireDAC.DApt,
-  FireDAC.Stan.Async,
-  FireDAC.VCLUI.Wait,
-  FireDAC.ConsoleUI.Wait,
-
-  // FireDAC Drivers
-  FireDAC.Phys.MSSQL;
+  FireDAC.Stan.Async;
 
 implementation
 

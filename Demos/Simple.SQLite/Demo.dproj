@@ -129,8 +129,8 @@
         <DCCReference Include="..\..\Trysil\Trysil.Attributes.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Cache.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Classes.pas"/>
-        <DCCReference Include="..\..\Trysil\Trysil.Consts.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Context.pas"/>
+        <DCCReference Include="..\..\Trysil\Trysil.Consts.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Events.Abstract.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Events.Attributes.pas"/>
         <DCCReference Include="..\..\Trysil\Trysil.Events.Factory.pas"/>
@@ -162,7 +162,6 @@
         <DCCReference Include="..\..\Trysil\Data\FireDAC\Trysil.Data.FireDAC.FirebirdSQL.pas"/>
         <DCCReference Include="..\..\Trysil\Data\FireDAC\Trysil.Data.FireDAC.SQLite.pas"/>
         <DCCReference Include="..\..\Trysil.UI\Trysil.Vcl.ListView.pas"/>
-        <DCCReference Include="Demo.Config.pas"/>
         <DCCReference Include="Demo.Model.pas"/>
         <DCCReference Include="Demo.MainForm.pas">
             <Form>MainForm</Form>
@@ -172,6 +171,11 @@
         </DCCReference>
         <DCCReference Include="Demo.ListView.pas"/>
         <DCCReference Include="..\..\Trysil\Data\Trysil.Data.Connection.pas"/>
+        <DCCReference Include="Demo.DatabaseBuilder.pas">
+            <Form>DatabaseBuilder</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TDataModule</DesignClass>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

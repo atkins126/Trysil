@@ -18,6 +18,7 @@ uses
   System.Generics.Collections,
   Data.DB,
 
+  Trysil.Consts,
   Trysil.Types,
   Trysil.Exceptions,
   Trysil.Mapping,
@@ -136,12 +137,6 @@ type
   public
     class procedure RegisterColumnClasses;
   end;
-
-{ resourcestring }
-
-resourcestring
-  SBlobDataColumnValue = 'Value for blob column is not accessible.';
-  SColumnTypeError = 'Column non registered for type %0:s.';
 
 implementation
 
@@ -293,14 +288,18 @@ end;
 
 function TTDataBlobColumn.GetValue: TTValue;
 begin
-  // TODO: Da implementare
-  raise ETException.Create(SBlobDataColumnValue);
+  result := TTValue.From<TBytes>(TBlobField(FField).AsBytes);
 end;
 
 function TTDataBlobColumn.GetNullableValue: TTValue;
+var
+  LValue: TTNullable<TBytes>;
 begin
-  // TODO: Da implementare
-  raise ETException.Create(SBlobDataColumnValue);
+  if FField.IsNull then
+    LValue := nil
+  else
+    LValue := TBlobField(FField).AsBytes;
+  result := TTValue.From<TTNullable<TBytes>>(LValue);
 end;
 
 { TTDataColumnFactory }
@@ -365,6 +364,7 @@ begin
   LInstance.RegisterColumnClass<TLargeintField, TTDataLargeIntegerColumn>();
 
   // TTDataDoubleColumn
+  LInstance.RegisterColumnClass<TFMTBCDField, TTDataDoubleColumn>();
   LInstance.RegisterColumnClass<TBCDField, TTDataDoubleColumn>();
   LInstance.RegisterColumnClass<TFloatField, TTDataDoubleColumn>();
   LInstance.RegisterColumnClass<TSingleField, TTDataDoubleColumn>();

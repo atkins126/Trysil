@@ -18,6 +18,7 @@ uses
   System.Generics.Collections,
   Data.DB,
 
+  Trysil.Consts,
   Trysil.Types,
   Trysil.Filter,
   Trysil.Exceptions,
@@ -27,6 +28,36 @@ uses
   Trysil.Events.Abstract;
 
 type
+
+{ TTDatasetParam }
+
+  TTDatasetParam = class abstract
+  strict protected
+    function GetAsString: String; virtual; abstract;
+    procedure SetAsString(const Value: String); virtual; abstract;
+    function GetAsInteger: Integer; virtual; abstract;
+    procedure SetAsInteger(const Value: Integer); virtual; abstract;
+    function GetAsLargeInt: Int64; virtual; abstract;
+    procedure SetAsLargeInt(const Value: Int64); virtual; abstract;
+    function GetAsDouble: Double; virtual; abstract;
+    procedure SetAsDouble(const Value: Double); virtual; abstract;
+    function GetAsBoolean: Boolean; virtual; abstract;
+    procedure SetAsBoolean(const Value: Boolean); virtual; abstract;
+    function GetAsDateTime: TDateTime; virtual; abstract;
+    procedure SetAsDateTime(const Value: TDateTime); virtual; abstract;
+    function GetAsGuid: TGUID; virtual; abstract;
+    procedure SetAsGuid(const Value: TGUID); virtual; abstract;
+  public
+    procedure Clear; virtual; abstract;
+
+    property AsString: String read GetAsString write SetAsString;
+    property AsInteger: Integer read GetAsInteger write SetAsInteger;
+    property AsLargeInt: Int64 read GetAsLargeInt write SetAsLargeInt;
+    property AsDouble: Double read GetAsDouble write SetAsDouble;
+    property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
+    property AsDateTime: TDateTime read GetAsDateTime write SetAsDateTime;
+    property AsGuid: TGUID read GetAsGuid write SetAsGuid;
+  end;
 
 { TTDataReader }
 
@@ -53,15 +84,26 @@ type
     property IsEmpty: Boolean read GetIsEmpty;
   end;
 
+{ TTUpdateMode }
+
+  TTUpdateMode = (KeyAndVersionColumn, KeyOnly);
+
 { TTDataAbstractCommand }
 
   TTDataAbstractCommand = class abstract
   strict protected
+    FMapper: TTMapper;
     FTableMap: TTTableMap;
     FTableMetadata: TTTableMetadata;
+    FUpdateMode: TTUpdateMode;
+
+    function GetWhereColumns: TArray<TTColumnMap>;
   public
     constructor Create(
-      const ATableMap: TTTableMap; const ATableMetadata: TTTableMetadata);
+      const AMapper: TTMapper;
+      const ATableMap: TTTableMap;
+      const ATableMetadata: TTTableMetadata;
+      const AUpdateMode: TTUpdateMode);
 
     procedure Execute(
       const AEntity: TObject; const AEvent: TTEvent); virtual; abstract;
@@ -83,6 +125,8 @@ type
 
   TTDataConnection = class abstract(TTMetadataProvider)
   strict protected
+    FUpdateMode: TTUpdateMode;
+
     function GetInTransaction: Boolean; virtual; abstract;
     function SelectCount(
       const ATableMap: TTTableMap;
@@ -90,9 +134,16 @@ type
       const AColumnName: String;
       const AEntity: TObject): Integer; virtual; abstract;
   public
+    constructor Create;
+
     procedure StartTransaction; virtual; abstract;
     procedure CommitTransaction; virtual; abstract;
     procedure RollbackTransaction; virtual; abstract;
+
+    function GetDatabaseObjectName(
+      const ADatabaseObjectName: String): String; virtual;
+    function GetParameterName(
+      const AParameterName: String): String;
 
     function GetSequenceID(
       const ASequenceName: String): TTPrimaryKey; virtual; abstract;
@@ -100,31 +151,41 @@ type
     procedure CheckRelations(
       const ATableMap: TTTableMap; const AEntity: TObject);
 
+    function CreateDataSet(const ASQL: String): TDataSet; virtual; abstract;
+
+    function Execute(
+      const ASQL: String;
+      const AMapper: TTMapper;
+      const ATableMap: TTTableMap;
+      const ATableMetadata: TTTableMetadata;
+      const AEntity: TObject): Integer; overload; virtual; abstract;
+
+    function Execute(const ASQL: String): Integer; overload; virtual;
+
     function CreateReader(
+      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata;
       const AFilter: TTFilter): TTDataReader; virtual; abstract;
 
     function CreateInsertCommand(
+      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata): TTDataInsertCommand; virtual; abstract;
 
     function CreateUpdateCommand(
+      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata): TTDataUpdateCommand; virtual; abstract;
 
     function CreateDeleteCommand(
+      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata): TTDataDeleteCommand; virtual; abstract;
 
     property InTransaction: Boolean read GetInTransaction;
+    property UpdateMode: TTUpdateMode read FUpdateMode write FUpdateMode;
   end;
-
-{ resourcestring }
-
-resourcestring
-  SColumnNotFound = 'Column %0:s not found.';
-  SRelationError = '"%s" is currently in use, unable to delete.';
 
 implementation
 
@@ -181,14 +242,38 @@ end;
 { TTDataAbstractCommand }
 
 constructor TTDataAbstractCommand.Create(
-  const ATableMap: TTTableMap; const ATableMetadata: TTTableMetadata);
+  const AMapper: TTMapper;
+  const ATableMap: TTTableMap;
+  const ATableMetadata: TTTableMetadata;
+  const AUpdateMode: TTUpdateMode);
 begin
   inherited Create;
+  FMapper := AMapper;
   FTableMap := ATableMap;
   FTableMetadata := ATableMetadata;
+  FUpdateMode := AUpdateMode;
+end;
+
+function TTDataAbstractCommand.GetWhereColumns: TArray<TTColumnMap>;
+var
+  LLength: Integer;
+begin
+  LLength := 1;
+  if FUpdateMode = TTUpdateMode.KeyAndVersionColumn then
+    Inc(LLength);
+  SetLength(result, LLength);
+  result[0] := FTableMap.PrimaryKey;
+  if FUpdateMode = TTUpdateMode.KeyAndVersionColumn then
+    result[1] := FTableMap.VersionColumn;
 end;
 
 { TTDataConnection }
+
+constructor TTDataConnection.Create;
+begin
+  inherited Create;
+  FUpdateMode := TTUpdateMode.KeyAndVersionColumn;
+end;
 
 procedure TTDataConnection.CheckRelations(
   const ATableMap: TTTableMap; const AEntity: TObject);
@@ -200,6 +285,23 @@ begin
       if SelectCount(
         ATableMap, LRelation.TableName, LRelation.ColumnName, AEntity) > 0 then
         raise ETException.CreateFmt(SRelationError, [AEntity.ToString()]);
+end;
+
+function TTDataConnection.Execute(const ASQL: String): Integer;
+begin
+  result := Execute(ASQL, nil, nil, nil, nil);
+end;
+
+function TTDataConnection.GetDatabaseObjectName(
+  const ADatabaseObjectName: String): String;
+begin
+  result := ADatabaseObjectName;
+end;
+
+function TTDataConnection.GetParameterName(
+  const AParameterName: String): String;
+begin
+  result := AParameterName.Replace(' ', '_', [rfReplaceAll]);
 end;
 
 end.

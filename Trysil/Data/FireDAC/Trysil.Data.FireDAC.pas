@@ -29,6 +29,7 @@ type
     class var FInstance: TTDataFireDACConnectionPool;
     class constructor ClassCreate;
     class destructor ClassDestroy;
+    class function GetInstance: TTDataFireDACConnectionPool; static;
   strict private
     FManager: TFDManager;
   public
@@ -38,11 +39,9 @@ type
     procedure AfterConstruction; override;
 
     procedure RegisterConnection(
-      const AName: String;
-      const ADriver: String;
-      const AParameters: TStrings);
+      const AName: String; const ADriver: String; const AParameters: TStrings);
 
-    class property Instance: TTDataFireDACConnectionPool read FInstance;
+    class property Instance: TTDataFireDACConnectionPool read GetInstance;
   end;
 
 implementation
@@ -51,12 +50,21 @@ implementation
 
 class constructor TTDataFireDACConnectionPool.ClassCreate;
 begin
-  FInstance := TTDataFireDACConnectionPool.Create;
+  FInstance := nil;
 end;
 
 class destructor TTDataFireDACConnectionPool.ClassDestroy;
 begin
-  FInstance.Free;
+  if Assigned(FInstance) then
+    FInstance.Free;
+end;
+
+class function TTDataFireDACConnectionPool.GetInstance:
+  TTDataFireDACConnectionPool;
+begin
+  if not Assigned(FInstance) then
+    FInstance := TTDataFireDACConnectionPool.Create;
+  result := FInstance;
 end;
 
 constructor TTDataFireDACConnectionPool.Create;

@@ -17,6 +17,7 @@ uses
   System.Classes,
   System.Generics.Defaults,
 
+  Trysil.Consts,
   Trysil.Exceptions;
 
 type
@@ -25,18 +26,38 @@ type
 
   TTPrimaryKey = Int32;
 
+{ TTPrimaryKeyHelper }
+
+  TTPrimaryKeyHelper = class
+  strict private
+    const IsQuoted: Boolean = False;
+  public
+    class function SqlValue(const AValue: TTPrimaryKey): String;
+  end;
+
 { TTVersion }
 
   TTVersion = Int32;
 
 { TTNullable<T> }
 
+{$IF CompilerVersion >= 34} // Delphi 10.4 Sydney
+  {$DEFINE Managed_Records}
+{$ENDIF}
+
   TTNullable<T> = record
+{$IFDEF Managed_Records}
+{$ELSE}
   strict private
-    const NotNullValue = '@';
+    const NotNullValue = '@@@';
+{$ENDIF}
   strict private
     FValue: T;
+{$IFDEF Managed_Records}
+    FIsNull: Boolean;
+{$ELSE}
     FIsNull: String;
+{$ENDIF}
 
     procedure Clear;
 
@@ -51,6 +72,10 @@ type
 
     function Equals(const AOther: TTNullable<T>): Boolean;
 
+{$IFDEF Managed_Records}
+    class operator Initialize(out ANullable: TTNullable<T>);
+{$ENDIF}
+
     class operator Implicit(const AValue: TTNullable<T>): T;
     class operator Implicit(const AValue: T): TTNullable<T>;
     class operator Implicit(AValue: Pointer): TTNullable<T>;
@@ -64,19 +89,27 @@ type
     property IsNull: Boolean read GetIsNull;
   end;
 
-{ resourcestring }
-
-resourcestring
-  SNullableTypeHasNoValue = 'Nullable type has no value: invalid operation.';
-  SCannotAssignPointerToNullable = 'Cannot assign non-null pointer to nullable type.';
-
 implementation
+
+{ TTPrimaryKeyHelper }
+
+class function TTPrimaryKeyHelper.SqlValue(const AValue: TTPrimaryKey): String;
+begin
+  if IsQuoted then
+    result := QuotedStr(AValue.ToString())
+  else
+    result := AValue.ToString();
+end;
 
 { TTNullable<T> }
 
 constructor TTNullable<T>.Create(const AValue: T);
 begin
+{$IFDEF Managed_Records}
+  FIsNull := False;
+{$ELSE}
   FIsNull := NotNullValue;
+{$ENDIF}
   FValue := AValue;
 end;
 
@@ -90,7 +123,11 @@ end;
 
 procedure TTNullable<T>.Clear;
 begin
-  FIsNull := '';
+{$IFDEF Managed_Records}
+  FIsNull := True;
+{$ELSE}
+  FIsNull := String.Empty;
+{$ENDIF}
   FValue := Default(T);
 end;
 
@@ -124,6 +161,14 @@ begin
   else
     result := (IsNull = AOther.IsNull);
 end;
+
+{$IFDEF Managed_Records}
+class operator TTNullable<T>.Initialize(out ANullable: TTNullable<T>);
+begin
+  ANullable.FIsNull := True;
+  ANullable.FValue := default(T);
+end;
+{$ENDIF}
 
 class operator TTNullable<T>.Implicit(const AValue: TTNullable<T>): T;
 begin
@@ -162,7 +207,11 @@ end;
 
 function TTNullable<T>.GetIsNull: Boolean;
 begin
-  result := (FIsNull.Length = 0);
+{$IFDEF Managed_Records}
+  result := FIsNull;
+{$ELSE}
+  result := FIsNull.IsEmpty;
+{$ENDIF}
 end;
 
 end.

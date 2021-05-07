@@ -8,7 +8,7 @@
   http://codenames.info/operation/orm/
 
 *)
-unit Trysil.Data.FireDAC.Parameters;
+unit Trysil.Data.Parameters;
 
 interface
 
@@ -18,8 +18,9 @@ uses
   System.Generics.Collections,
   System.TypInfo,
   Data.DB,
-  FireDAC.Stan.Param,
 
+  Trysil.Consts,
+  Trysil.Data,
   Trysil.Types,
   Trysil.Exceptions,
   Trysil.Mapping,
@@ -31,11 +32,14 @@ type
 
   TTDataParameter = class abstract
   strict protected
-    FParam: TFDParam;
+    FDatasetParam: TTDatasetParam;
+    FMapper: TTMapper;
     FColumnMap: TTColumnMap;
   public
     constructor Create(
-      const AParam: TFDParam; const AColumnMap: TTColumnMap);
+      const ADatasetParam: TTDatasetParam;
+      const AMapper: TTMapper;
+      const AColumnMap: TTColumnMap);
 
     procedure SetValue(const AEntity: TObject); virtual; abstract;
   end;
@@ -52,6 +56,8 @@ type
 { TTDataIntegerParameter }
 
   TTDataIntegerParameter = class(TTDataParameter)
+  strict private
+    procedure SetValueFromObject(const AObject: TObject);
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
@@ -116,7 +122,8 @@ type
 
     function CreateParameter(
       const AFieldType: TFieldType;
-      const AParam: TFDParam;
+      const ADatasetParam: TTDatasetParam;
+      const AMapper: TTMapper;
       const AColumnMap: TTColumnMap): TTDataParameter;
 
     class property Instance: TTDataParameterFactory read FInstance;
@@ -129,21 +136,18 @@ type
     class procedure RegisterParameterClasses;
   end;
 
-{ resourcestring }
-
-resourcestring
-  SBlobDataParameterValue = 'Value for blob Parameter is not accessible.';
-  SParameterTypeError = 'Parameter non registered for type %s.';
-
 implementation
 
 { TTDataParameter }
 
 constructor TTDataParameter.Create(
-  const AParam: TFDParam; const AColumnMap: TTColumnMap);
+  const ADatasetParam: TTDatasetParam;
+  const AMapper: TTMapper;
+  const AColumnMap: TTColumnMap);
 begin
   inherited Create;
-  FParam := AParam;
+  FDatasetParam := ADatasetParam;
+  FMapper := AMapper;
   FColumnMap := AColumnMap;
 end;
 
@@ -159,12 +163,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<String>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsString := LNullable;
+      FDatasetParam.AsString := LNullable;
   end
   else
-    FParam.AsString := LValue.AsType<String>();
+    FDatasetParam.AsString := LValue.AsType<String>();
 end;
 
 { TTDataIntegerParameter }
@@ -179,17 +183,33 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Integer>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsInteger := LNullable;
+      FDatasetParam.AsInteger := LNullable;
   end
   else if FColumnMap.Member.IsClass then
-  begin
-    LValue := FColumnMap.Member.GetValueFromObject(LValue.AsObject);
-    FParam.AsInteger := LValue.AsType<Integer>();
-  end
+    SetValueFromObject(LValue.AsObject)
   else
-    FParam.AsInteger := LValue.AsType<Integer>();
+    FDatasetParam.AsInteger := LValue.AsType<Integer>();
+end;
+
+procedure TTDataIntegerParameter.SetValueFromObject(const AObject: TObject);
+var
+  LTableMap: TTTableMap;
+  LValue: TTValue;
+begin
+  if TRttiLazy.IsLazy(AObject) then
+    LValue := FColumnMap.Member.GetValueFromObject(AObject)
+  else
+  begin
+    LTableMap := FMapper.Load(AObject.ClassInfo);
+    if not Assigned(LTableMap) then
+      raise ETException.Create(STableMapNotFound);
+    if not Assigned(LTableMap.PrimaryKey) then
+      raise ETException.Create(SPrimaryKeyNotDefined);
+    LValue := LTableMap.PrimaryKey.Member.GetValue(AObject);
+  end;
+  FDatasetParam.AsInteger := LValue.AsType<Integer>();
 end;
 
 { TTDataLargeIntegerParameter }
@@ -204,12 +224,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Int64>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsLargeInt := LNullable;
+      FDatasetParam.AsLargeInt := LNullable;
   end
   else
-    FParam.AsLargeInt := LValue.AsType<Int64>();
+    FDatasetParam.AsLargeInt := LValue.AsType<Int64>();
 end;
 
 { TTDataDoubleParameter }
@@ -224,12 +244,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Double>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsFloat := LNullable;
+      FDatasetParam.AsDouble := LNullable;
   end
   else
-    FParam.AsFloat := LValue.AsType<Double>();
+    FDatasetParam.AsDouble := LValue.AsType<Double>();
 end;
 
 { TTDataBooleanParameter }
@@ -244,12 +264,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Boolean>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsBoolean := LNullable;
+      FDatasetParam.AsBoolean := LNullable;
   end
   else
-    FParam.AsBoolean := LValue.AsType<Boolean>();
+    FDatasetParam.AsBoolean := LValue.AsType<Boolean>();
 end;
 
 { TTDataDateTimeParameter }
@@ -264,12 +284,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<TDateTime>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsDateTime := LNullable;
+      FDatasetParam.AsDateTime := LNullable;
   end
   else
-    FParam.AsDateTime := LValue.AsType<TDateTime>();
+    FDatasetParam.AsDateTime := LValue.AsType<TDateTime>();
 end;
 
 { TTDataGuidParameter }
@@ -284,12 +304,12 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<TGuid>>();
     if LNullable.IsNull then
-      FParam.Clear()
+      FDatasetParam.Clear()
     else
-      FParam.AsGuid := LNullable;
+      FDatasetParam.AsGuid := LNullable;
   end
   else
-    FParam.AsGuid := LValue.AsType<TGuid>();
+    FDatasetParam.AsGuid := LValue.AsType<TGuid>();
 end;
 
 { TTDataBlobParameter }
@@ -332,7 +352,8 @@ end;
 
 function TTDataParameterFactory.CreateParameter(
   const AFieldType: TFieldType;
-  const AParam: TFDParam;
+  const ADatasetParam: TTDatasetParam;
+  const AMapper: TTMapper;
   const AColumnMap: TTColumnMap): TTDataParameter;
 var
   LClass: TClass;
@@ -340,7 +361,8 @@ begin
   if not FDataParameterTypes.TryGetValue(AFieldType, LClass) then
     raise ETException.CreateFmt(SParameterTypeError, [
       GetEnumName(TypeInfo(TFieldType), Ord(AFieldType))]);
-  result := TTDataParameterClass(LClass).Create(AParam, AColumnMap);
+  result := TTDataParameterClass(LClass).Create(
+    ADatasetParam, AMapper, AColumnMap);
 end;
 
 { TTDataParameterRegister }

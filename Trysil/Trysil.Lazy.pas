@@ -184,7 +184,8 @@ begin
   begin
     FList := TTList<T>.Create;
     try
-      LFilter := TTFilter.Create(Format('[%s] = %d', [FColumnName, FID]));
+      LFilter := TTFilter.Create(
+        Format('%s = %s', [FColumnName, TTPrimaryKeyHelper.SqlValue(FID)]));
       FContext.Select<T>(FList, LFilter);
     except
       FList.Free;

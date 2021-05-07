@@ -80,6 +80,7 @@ type
   TTMetadataProvider = class abstract
   public
     procedure GetMetadata(
+      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata); virtual; abstract;
   end;
@@ -98,7 +99,8 @@ type
       const AMapper: TTMapper;
       const AMetadataProvider: TTMetadataProvider);
 
-    function Load<T: class>(): TTTableMetaData;
+    function Load<T: class>(): TTTableMetaData; overload;
+    function Load(const ATypeInfo: PTypeInfo): TTTableMetaData; overload;
   end;
 
 implementation
@@ -175,7 +177,7 @@ begin
   LTableMap := FMapper.Load(ATypeInfo);
   result := TTTableMetadata.Create(LTableMap.Name);
   try
-    FMetadataProvider.GetMetadata(LTableMap, result);
+    FMetadataProvider.GetMetadata(FMapper, LTableMap, result);
   except
     result.Free;
     raise;
@@ -184,7 +186,12 @@ end;
 
 function TTMetadata.Load<T>: TTTableMetaData;
 begin
-  result := GetValueOrCreate(TypeInfo(T));
+  result := Load(TypeInfo(T));
+end;
+
+function TTMetadata.Load(const ATypeInfo: PTypeInfo): TTTableMetaData;
+begin
+  result := GetValueOrCreate(ATypeInfo);
 end;
 
 end.

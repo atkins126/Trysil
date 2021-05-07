@@ -5,8 +5,8 @@ uses
   Trysil.Attributes in '..\..\Trysil\Trysil.Attributes.pas',
   Trysil.Cache in '..\..\Trysil\Trysil.Cache.pas',
   Trysil.Classes in '..\..\Trysil\Trysil.Classes.pas',
-  Trysil.Consts in '..\..\Trysil\Trysil.Consts.pas',
   Trysil.Context in '..\..\Trysil\Trysil.Context.pas',
+  Trysil.Consts in '..\..\Trysil\Trysil.Consts.pas',
   Trysil.Events.Abstract in '..\..\Trysil\Trysil.Events.Abstract.pas',
   Trysil.Events.Attributes in '..\..\Trysil\Trysil.Events.Attributes.pas',
   Trysil.Events.Factory in '..\..\Trysil\Trysil.Events.Factory.pas',
@@ -38,12 +38,12 @@ uses
   Trysil.Data.FireDAC.FirebirdSQL in '..\..\Trysil\Data\FireDAC\Trysil.Data.FireDAC.FirebirdSQL.pas',
   Trysil.Data.FireDAC.SQLite in '..\..\Trysil\Data\FireDAC\Trysil.Data.FireDAC.SQLite.pas',
   Trysil.Vcl.ListView in '..\..\Trysil.UI\Trysil.Vcl.ListView.pas',
-  Demo.Config in 'Demo.Config.pas',
   Demo.Model in 'Demo.Model.pas',
   Demo.MainForm in 'Demo.MainForm.pas' {MainForm},
   Demo.EditDialog in 'Demo.EditDialog.pas' {EditDialog},
   Demo.ListView in 'Demo.ListView.pas',
-  Trysil.Data.Connection in '..\..\Trysil\Data\Trysil.Data.Connection.pas';
+  Trysil.Data.Connection in '..\..\Trysil\Data\Trysil.Data.Connection.pas',
+  Demo.DatabaseBuilder in 'Demo.DatabaseBuilder.pas' {DatabaseBuilder: TDataModule};
 
 {$R *.res}
 

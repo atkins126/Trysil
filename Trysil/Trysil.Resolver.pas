@@ -16,7 +16,9 @@ uses
   System.SysUtils,
   System.Classes,
 
+  Trysil.Consts,
   Trysil.Types,
+  Trysil.Exceptions,
   Trysil.Rtti,
   Trysil.Mapping,
   Trysil.Metadata,
@@ -34,6 +36,9 @@ type
     FContext: TObject;
     FMetadata: TTMetadata;
     FMapper: TTMapper;
+    FUpdateMode: TTUpdateMode;
+
+    procedure CheckReadWrite(const ATableMap: TTTableMap);
   public
     constructor Create(
       const AConnection: TTDataConnection;
@@ -61,6 +66,21 @@ begin
   FContext := AContext;
   FMetadata := AMetadata;
   FMapper := AMapper;
+  FUpdateMode := TTUpdateMode.KeyAndVersionColumn;
+end;
+
+procedure TTResolver.CheckReadWrite(const ATableMap: TTTableMap);
+begin
+  case FConnection.UpdateMode of
+    TTUpdateMode.KeyAndVersionColumn:
+      if (not Assigned(ATableMap.PrimaryKey)) or
+        (not Assigned(ATableMap.VersionColumn)) then
+        raise ETException.Create(SReadOnly);
+
+    TTUpdateMode.KeyOnly:
+      if not Assigned(ATableMap.PrimaryKey) then
+        raise ETException.Create(SReadOnlyPrimaryKey);
+  end;
 end;
 
 procedure TTResolver.Insert<T>(const AEntity: T);
@@ -71,8 +91,10 @@ var
   LEvent: TTEvent;
 begin
   LTableMap := FMapper.Load<T>();
+  CheckReadWrite(LTableMap);
   LTableMetadata := FMetadata.Load<T>();
-  LCommand := FConnection.CreateInsertCommand(LTableMap, LTableMetadata);
+  LCommand := FConnection.CreateInsertCommand(
+    FMapper, LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.InsertEventClass, FContext, AEntity);
@@ -82,7 +104,8 @@ begin
       if Assigned(LEvent) then
         LEvent.Free;
     end;
-    LTableMap.VersionColumn.Member.SetValue(AEntity, 0);
+    if Assigned(LTableMap.VersionColumn) then
+      LTableMap.VersionColumn.Member.SetValue(AEntity, 0);
   finally
     LCommand.Free;
   end;
@@ -96,8 +119,10 @@ var
   LEvent: TTEvent;
 begin
   LTableMap := FMapper.Load<T>();
+  CheckReadWrite(LTableMap);
   LTableMetadata := FMetadata.Load<T>();
-  LCommand := FConnection.CreateUpdateCommand(LTableMap, LTableMetadata);
+  LCommand := FConnection.CreateUpdateCommand(
+    FMapper, LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.UpdateEventClass, FContext, AEntity);
@@ -107,9 +132,12 @@ begin
       if Assigned(LEvent) then
         LEvent.Free;
     end;
-    LTableMap.VersionColumn.Member.SetValue(
-      AEntity,
-      LTableMap.VersionColumn.Member.GetValue(AEntity).AsType<TTVersion>() + 1);
+    if Assigned(LTableMap.VersionColumn) then
+    begin
+      LTableMap.VersionColumn.Member.SetValue(
+        AEntity,
+        LTableMap.VersionColumn.Member.GetValue(AEntity).AsType<TTVersion>() + 1);
+    end;
   finally
     LCommand.Free;
   end;
@@ -123,9 +151,11 @@ var
   LEvent: TTEvent;
 begin
   LTableMap := FMapper.Load<T>();
+  CheckReadWrite(LTableMap);
   FConnection.CheckRelations(LTableMap, AEntity);
   LTableMetadata := FMetadata.Load<T>();
-  LCommand := FConnection.CreateDeleteCommand(LTableMap, LTableMetadata);
+  LCommand := FConnection.CreateDeleteCommand(
+    FMapper, LTableMap, LTableMetadata);
   try
     LEvent := TTEventFactory.Instance.CreateEvent<T>(
       LTableMap.Events.DeleteEventClass, FContext, AEntity);
