@@ -16,7 +16,6 @@ uses
   System.Classes,
   System.SysUtils,
   System.Generics.Collections,
-  Data.DB,
 
   Trysil.Consts,
   Trysil.Types,
@@ -31,208 +30,213 @@ uses
 
 type
 
-{ TTDataSequenceSyntax }
+{ TTSequenceSyntax }
 
-  TTDataSequenceSyntax = class abstract
+  TTSequenceSyntax = class abstract
+  strict private
+    function GetSQL: String;
   strict protected
-    FConnection: TTDataConnection;
-    FSequenceName: String;
+    FConnection: TTConnection;
+    FTableMap: TTTableMap;
 
-    function GetID: TTPrimaryKey; virtual;
     function GetSequenceSyntax: String; virtual; abstract;
   public
     constructor Create(
-      const AConnection: TTDataConnection; const ASequenceName: String);
+      const AConnection: TTConnection; const ATableMap: TTTableMap);
 
-    property ID: TTPrimaryKey read GetID;
+    property SQL: String read GetSQL;
   end;
 
-  TTDataSequenceSyntaxClass = class of TTDataSequenceSyntax;
+  TTSequenceSyntaxClass = class of TTSequenceSyntax;
 
-{ TTDataSelectCountSyntax }
+{ TTSelectCountSyntax }
 
-  TTDataSelectCountSyntax = class
+  TTSelectCountSyntax = class
   strict protected
-    FConnection: TTDataConnection;
+    FConnection: TTConnection;
     FTableMap: TTTableMap;
     FTableName: String;
     FColumnName: String;
     FID: TTPrimaryKey;
 
-    function GetCount: Integer; virtual;
+    function GetSQL: String; virtual;
   public
     constructor Create(
-      const AConnection: TTDataConnection;
+      const AConnection: TTConnection;
       const ATableMap: TTTableMap;
       const ATableName: String;
       const AColumnName: String;
       const AID: TTPrimaryKey);
 
-    property Count: Integer read GetCount;
+    property SQL: String read GetSQL;
   end;
 
-  TTDataSelectCountSyntaxClass = class of TTDataSelectCountSyntax;
+  TTSelectCountSyntaxClass = class of TTSelectCountSyntax;
 
-{ TTDataAbstractSqlSyntax }
+{ TTAbstractSqlSyntax }
 
-  TTDataAbstractSyntax = class abstract
+  TTAbstractSyntax = class abstract
   strict protected
-    FConnection: TTDataConnection;
+    FConnection: TTConnection;
     FMapper: TTMapper;
     FTableMap: TTTableMap;
     FTableMetadata: TTTableMetadata;
 
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; virtual; abstract;
   public
     constructor Create(
-      const AConnection: TTDataConnection;
+      const AConnection: TTConnection;
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
   end;
 
-{ TTDataSelectSyntax }
+{ TTSelectSyntax }
 
-  TTDataSelectSyntax = class abstract(TTDataAbstractSyntax)
+  TTSelectSyntax = class abstract(TTAbstractSyntax)
   strict private
-    FDataset: TDataSet;
-
-    function GetDataset: TDataset;
+    function GetSQL: String;
   strict protected
     FFilter: TTFilter;
 
     function GetColumns: String; virtual;
     function GetOrderBy: String; virtual;
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
 
     function GetFilterTopSyntax: String; virtual; abstract;
   public
     constructor Create(
-      const AConnection: TTDataConnection;
+      const AConnection: TTConnection;
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata;
       const AFilter: TTFilter);
-    destructor Destroy; override;
 
-    procedure AfterConstruction; override;
-
-    property Dataset: TDataset read GetDataset;
+    property SQL: String read GetSQL;
   end;
 
-  TTDataSelectSyntaxClass = class of TTDataSelectSyntax;
+  TTSelectSyntaxClass = class of TTSelectSyntax;
 
-{ TTDataMetadataSyntax }
+{ TTMetadataSyntax }
 
-  TTDataMetadataSyntax = class(TTDataSelectSyntax)
+  TTMetadataSyntax = class(TTSelectSyntax)
   strict protected
     function GetFilterTopSyntax: String; override;
   public
     constructor Create(
-      const AConnection: TTDataConnection;
+      const AConnection: TTConnection;
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
   end;
 
-  TTDataMetadataSyntaxClass = class of TTDataMetadataSyntax;
+  TTMetadataSyntaxClass = class of TTMetadataSyntax;
 
-{ TTDataCommandSyntax }
+{ TTCommandSyntax }
 
-  TTDataCommandSyntax = class abstract(TTDataAbstractSyntax)
-  strict protected
-    procedure BeforeExecute(
-      const AEntity: TObject; const AEvent: TTEvent); virtual;
-    procedure AfterExecute(
-      const AEntity: TObject; const AEvent: TTEvent); virtual;
+  TTCommandSyntax = class abstract(TTAbstractSyntax)
   public
     constructor Create(
-      const AConnection: TTDataConnection;
+      const AConnection: TTConnection;
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
 
-    procedure Execute(
-      const AEntity: TObject;
-      const AEvent: TTEvent;
-      const AWhereColumns: TArray<TTColumnMap>);
+    function GetSqlSyntax(const AWhereColumns: TArray<TTColumnMap>): String;
   end;
 
-  TTDataCommandSyntaxClass = class of TTDataCommandSyntax;
+  TTCommandSyntaxClass = class of TTCommandSyntax;
 
-{ TTDataInsertSyntax }
+{ TTInsertSyntax }
 
-  TTDataInsertSyntax = class(TTDataCommandSyntax)
+  TTInsertSyntax = class(TTCommandSyntax)
   strict protected
     function GetColumns: String; virtual;
     function GetParameters: String; virtual;
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
   end;
 
-{ TTDataUpdateSyntax }
+{ TTUpdateSyntax }
 
-  TTDataUpdateSyntax = class(TTDataCommandSyntax)
+  TTUpdateSyntax = class(TTCommandSyntax)
   strict protected
     function GetColumns: String; virtual;
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
   end;
 
-{ TTDataDeleteSyntax }
+{ TTDeleteSyntax }
 
-  TTDataDeleteSyntax = class(TTDataCommandSyntax)
+  TTDeleteSyntax = class(TTCommandSyntax)
   strict protected
-    procedure BeforeExecute(
-      const AEntity: TObject; const AEvent: TTEvent); override;
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
   end;
 
-{ TTDataSyntaxClasses }
+{ TTDeleteCascadeSyntax }
 
-  TTDataSyntaxClasses = class abstract
+  TTDeleteCascadeSyntax = class(TTCommandSyntax)
+  strict protected
+    function InternalGetSqlSyntax(
+      const AWhereColumns: TArray<TTColumnMap>): String; override;
   public
-    function Sequence: TTDataSequenceSyntaxClass; virtual; abstract;
-    function SelectCount: TTDataSelectCountSyntaxClass; virtual;
-    function Select: TTDataSelectSyntaxClass; virtual; abstract;
-    function Metadata: TTDataMetadataSyntaxClass; virtual;
-    function Insert: TTDataCommandSyntaxClass; virtual;
-    function Update: TTDataCommandSyntaxClass; virtual;
-    function Delete: TTDataCommandSyntaxClass; virtual;
+    constructor Create;
+
+    function GetSqlSyntax: String;
+  end;
+
+  TTDeleteCascadeSyntaxClass = class of TTDeleteCascadeSyntax;
+
+{ TTVersionSyntax }
+
+  TTVersionSyntax = class
+  strict protected
+    function GetSQL: String; virtual; abstract;
+  public
+    property SQL: String read GetSQL;
+  end;
+
+  TTVersionSyntaxClass = class of TTVersionSyntax;
+
+{ TTSyntaxClasses }
+
+  TTSyntaxClasses = class abstract
+  public
+    function Sequence: TTSequenceSyntaxClass; virtual; abstract;
+    function SelectCount: TTSelectCountSyntaxClass; virtual;
+    function Select: TTSelectSyntaxClass; virtual; abstract;
+    function Metadata: TTMetadataSyntaxClass; virtual;
+    function Insert: TTCommandSyntaxClass; virtual;
+    function Update: TTCommandSyntaxClass; virtual;
+    function Delete: TTCommandSyntaxClass; virtual;
+    function DeleteCascade: TTDeleteCascadeSyntaxClass; virtual;
+    function Version: TTVersionSyntaxClass; virtual; abstract;
   end;
 
 implementation
 
-{ TTDataSequenceSyntax }
+{ TTSequenceSyntax }
 
-constructor TTDataSequenceSyntax.Create(
-  const AConnection: TTDataConnection; const ASequenceName: String);
+constructor TTSequenceSyntax.Create(
+  const AConnection: TTConnection; const ATableMap: TTTableMap);
 begin
   inherited Create;
   FConnection := AConnection;
-  FSequenceName := ASequenceName;
+  FTableMap := ATableMap;
 end;
 
-function TTDataSequenceSyntax.GetID: TTPrimaryKey;
-var
-  LDataset: TDataSet;
+function TTSequenceSyntax.GetSQL: String;
 begin
-  LDataset := FConnection.CreateDataSet(GetSequenceSyntax);
-  try
-    LDataset.Open;
-    result := LDataset.Fields[0].AsInteger;
-  finally
-    LDataset.Free;
-  end;
+  result := GetSequenceSyntax;
 end;
 
-{ TTDataSelectCountSyntax }
+{ TTSelectCountSyntax }
 
-constructor TTDataSelectCountSyntax.Create(
-  const AConnection: TTDataConnection;
+constructor TTSelectCountSyntax.Create(
+  const AConnection: TTConnection;
   const ATableMap: TTTableMap;
   const ATableName: String;
   const AColumnName: String;
@@ -246,27 +250,18 @@ begin
   FID := AID;
 end;
 
-function TTDataSelectCountSyntax.GetCount: Integer;
-var
-  LDataset: TDataSet;
+function TTSelectCountSyntax.GetSQL: String;
 begin
-  LDataset := FConnection.CreateDataSet(
-    Format('SELECT COUNT(*) FROM %0:s WHERE %1:s = %2:d', [
-      FConnection.GetDatabaseObjectName(FTableName),
-      FConnection.GetDatabaseObjectName(FColumnName),
-      FID]));
-  try
-    LDataset.Open;
-    result := LDataset.Fields[0].AsInteger;
-  finally
-    LDataset.Free;
-  end;
+  result := Format('SELECT COUNT(*) FROM %0:s WHERE %1:s = %2:d', [
+    FConnection.GetDatabaseObjectName(FTableName),
+    FConnection.GetDatabaseObjectName(FColumnName),
+    FID]);
 end;
 
-{ TTDataAbstractSyntax }
+{ TTAbstractSyntax }
 
-constructor TTDataAbstractSyntax.Create(
-  const AConnection: TTDataConnection;
+constructor TTAbstractSyntax.Create(
+  const AConnection: TTConnection;
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
@@ -278,10 +273,10 @@ begin
   FTableMetadata := ATableMetadata;
 end;
 
-{ TTDataSelectSyntax }
+{ TTSelectSyntax }
 
-constructor TTDataSelectSyntax.Create(
-  const AConnection: TTDataConnection;
+constructor TTSelectSyntax.Create(
+  const AConnection: TTConnection;
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata;
@@ -291,20 +286,7 @@ begin
   FFilter := AFilter;
 end;
 
-destructor TTDataSelectSyntax.Destroy;
-begin
-  FDataset.Free;
-  inherited;
-end;
-
-procedure TTDataSelectSyntax.AfterConstruction;
-begin
-  inherited AfterConstruction;
-  FDataset := FConnection.CreateDataSet(GetSqlSyntax([]));
-  FDataset.Open;
-end;
-
-function TTDataSelectSyntax.GetColumns: String;
+function TTSelectSyntax.GetColumns: String;
 var
   LResult: TStringBuilder;
   LColumnMap: TTColumnMap;
@@ -323,12 +305,7 @@ begin
   end;
 end;
 
-function TTDataSelectSyntax.GetDataset: TDataset;
-begin
-  result := FDataset;
-end;
-
-function TTDataSelectSyntax.GetOrderBy: String;
+function TTSelectSyntax.GetOrderBy: String;
 var
   LResult: TStringBuilder;
 begin
@@ -348,7 +325,7 @@ begin
   end;
 end;
 
-function TTDataSelectSyntax.GetSqlSyntax(
+function TTSelectSyntax.InternalGetSqlSyntax(
   const AWhereColumns: TArray<TTColumnMap>): String;
 var
   LResult: TStringBuilder;
@@ -371,10 +348,15 @@ begin
   end;
 end;
 
-{ TTDataMetadataSyntax }
+function TTSelectSyntax.GetSQL: String;
+begin
+  result := InternalGetSqlSyntax([]);
+end;
 
-constructor TTDataMetadataSyntax.Create(
-  const AConnection: TTDataConnection;
+{ TTMetadataSyntax }
+
+constructor TTMetadataSyntax.Create(
+  const AConnection: TTConnection;
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
@@ -383,15 +365,15 @@ begin
     AConnection, AMapper, ATableMap, ATableMetadata, TTFilter.Create('0 = 1'));
 end;
 
-function TTDataMetadataSyntax.GetFilterTopSyntax: String;
+function TTMetadataSyntax.GetFilterTopSyntax: String;
 begin
   result := String.Empty;
 end;
 
-{ TTDataCommandSyntax }
+{ TTCommandSyntax }
 
-constructor TTDataCommandSyntax.Create(
-  const AConnection: TTDataConnection;
+constructor TTCommandSyntax.Create(
+  const AConnection: TTConnection;
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
@@ -399,60 +381,15 @@ begin
   inherited Create(AConnection, AMapper, ATableMap, ATableMetadata);
 end;
 
-procedure TTDataCommandSyntax.BeforeExecute(
-  const AEntity: TObject; const AEvent: TTEvent);
+function TTCommandSyntax.GetSqlSyntax(
+  const AWhereColumns: TArray<TTColumnMap>): String;
 begin
-  if Assigned(AEvent) then
-    AEvent.DoBefore;
+  result := InternalGetSqlSyntax(AWhereColumns);
 end;
 
-procedure TTDataCommandSyntax.AfterExecute(
-  const AEntity: TObject; const AEvent: TTEvent);
-begin
-  if Assigned(AEvent) then
-    AEvent.DoAfter;
-end;
+{ TTInsertSyntax }
 
-procedure TTDataCommandSyntax.Execute(
-  const AEntity: TObject;
-  const AEvent: TTEvent;
-  const AWhereColumns: TArray<TTColumnMap>);
-var
-  LLocalTransaction: Boolean;
-  LRowsAffected: Integer;
-begin
-  LLocalTransaction := not FConnection.InTransaction;
-  if LLocalTransaction then
-    FConnection.StartTransaction;
-  try
-    BeforeExecute(AEntity, AEvent);
-
-    LRowsAffected := FConnection.Execute(
-      GetSqlSyntax(AWhereColumns),
-      FMapper,
-      FTableMap,
-      FTableMetadata,
-      AEntity);
-
-    if LRowsAffected = 0 then
-      raise ETException.Create(SRecordChanged)
-    else if LRowsAffected > 1 then
-      raise ETException.Create(SSyntaxError);
-
-    AfterExecute(AEntity, AEvent);
-
-    if LLocalTransaction then
-      FConnection.CommitTransaction;
-  except
-    if LLocalTransaction then
-      FConnection.RollbackTransaction;
-    raise;
-  end;
-end;
-
-{ TTDataInsertSyntax }
-
-function TTDataInsertSyntax.GetColumns: String;
+function TTInsertSyntax.GetColumns: String;
 var
   LResult: TStringBuilder;
   LColumnMap: TTColumnMap;
@@ -471,7 +408,7 @@ begin
   end;
 end;
 
-function TTDataInsertSyntax.GetParameters: String;
+function TTInsertSyntax.GetParameters: String;
 var
   LResult: TStringBuilder;
   LColumnMap: TTColumnMap;
@@ -492,7 +429,7 @@ begin
   end;
 end;
 
-function TTDataInsertSyntax.GetSqlSyntax(
+function TTInsertSyntax.InternalGetSqlSyntax(
   const AWhereColumns: TArray<TTColumnMap>): String;
 var
   LResult: TStringBuilder;
@@ -512,9 +449,9 @@ begin
   end;
 end;
 
-{ TTDataUpdateSyntax }
+{ TTUpdateSyntax }
 
-function TTDataUpdateSyntax.GetColumns: String;
+function TTUpdateSyntax.GetColumns: String;
 var
   LResult: TStringBuilder;
   LColumnMap: TTColumnMap;
@@ -541,7 +478,7 @@ begin
   end;
 end;
 
-function TTDataUpdateSyntax.GetSqlSyntax(
+function TTUpdateSyntax.InternalGetSqlSyntax(
   const AWhereColumns: TArray<TTColumnMap>): String;
 var
   LResult: TStringBuilder;
@@ -573,27 +510,9 @@ begin
   end;
 end;
 
-{ TTDataDeleteSyntax }
+{ TTDeleteSyntax }
 
-procedure TTDataDeleteSyntax.BeforeExecute(
-  const AEntity: TObject; const AEvent: TTEvent);
-var
-  LID: TTPrimaryKey;
-  LRelation: TTRelationMap;
-begin
-  inherited BeforeExecute(AEntity, AEvent);
-  LID := FTableMap.PrimaryKey.Member.GetValue(AEntity).AsType<TTPrimaryKey>();
-  for LRelation in FTableMap.Relations do
-    if LRelation.IsCascade then
-    begin
-      FConnection.Execute(Format('DELETE FROM %0:s WHERE %1:s = %1:d', [
-        FConnection.GetDatabaseObjectName(LRelation.TableName),
-        FConnection.GetDatabaseObjectName(LRelation.ColumnName),
-        LID]));
-    end;
-end;
-
-function TTDataDeleteSyntax.GetSqlSyntax(
+function TTDeleteSyntax.InternalGetSqlSyntax(
   const AWhereColumns: TArray<TTColumnMap>): String;
 var
   LResult: TStringBuilder;
@@ -624,31 +543,54 @@ begin
   end;
 end;
 
-{ TTDataSyntaxClasses }
+{ TTDeleteCascadeSyntax }
 
-function TTDataSyntaxClasses.SelectCount: TTDataSelectCountSyntaxClass;
+constructor TTDeleteCascadeSyntax.Create;
 begin
-  result := TTDataSelectCountSyntax;
+  inherited Create(nil, nil, nil, nil);
 end;
 
-function TTDataSyntaxClasses.Metadata: TTDataMetadataSyntaxClass;
+function TTDeleteCascadeSyntax.GetSqlSyntax: String;
 begin
-  result := TTDataMetadataSyntax;
+  result := InternalGetSqlSyntax([]);
 end;
 
-function TTDataSyntaxClasses.Insert: TTDataCommandSyntaxClass;
+function TTDeleteCascadeSyntax.InternalGetSqlSyntax(
+  const AWhereColumns: TArray<TTColumnMap>): String;
 begin
-  result := TTDataInsertSyntax;
+  result := 'DELETE FROM %0:s WHERE %1:s = %2:s';
 end;
 
-function TTDataSyntaxClasses.Update: TTDataCommandSyntaxClass;
+{ TTSyntaxClasses }
+
+function TTSyntaxClasses.SelectCount: TTSelectCountSyntaxClass;
 begin
-  result := TTDataUpdateSyntax;
+  result := TTSelectCountSyntax;
 end;
 
-function TTDataSyntaxClasses.Delete: TTDataCommandSyntaxClass;
+function TTSyntaxClasses.Metadata: TTMetadataSyntaxClass;
 begin
-  result := TTDataDeleteSyntax;
+  result := TTMetadataSyntax;
+end;
+
+function TTSyntaxClasses.Insert: TTCommandSyntaxClass;
+begin
+  result := TTInsertSyntax;
+end;
+
+function TTSyntaxClasses.Update: TTCommandSyntaxClass;
+begin
+  result := TTUpdateSyntax;
+end;
+
+function TTSyntaxClasses.Delete: TTCommandSyntaxClass;
+begin
+  result := TTDeleteSyntax;
+end;
+
+function TTSyntaxClasses.DeleteCascade: TTDeleteCascadeSyntaxClass;
+begin
+  result := TTDeleteCascadeSyntax;
 end;
 
 end.

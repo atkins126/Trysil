@@ -69,7 +69,7 @@ type
     procedure SearchTextboxInvokeSearch(Sender: TObject);
   strict private
     FCreateDatabase: Boolean;
-    FConnection: TTDataConnection;
+    FConnection: TTConnection;
     FContext: TTContext;
     FMasterData: TTList<TTMasterData>;
     FMasterDataListView: TTMasterDataListView;
@@ -97,22 +97,12 @@ implementation
 constructor TMainForm.Create(AOwner: TComponent);
 const
   DatabaseName: String = 'Test.db';
-var
-  LParameters: TStrings;
 begin
   inherited Create(AOwner);
   FCreateDatabase := not TFile.Exists(DatabaseName);
 
-  LParameters := TStringList.Create;
-  try
-    LParameters.Add(Format('Database=%s', [DatabaseName]));
-    LParameters.Add('SharedCache=False');
-    LParameters.Add('LockingMode=Normal');
-    TTDataSQLiteConnection.RegisterConnection('Test', LParameters);
-  finally
-    LParameters.Free;
-  end;
-  FConnection := TTDataSQLiteConnection.Create('Test');
+  TTSQLiteConnection.RegisterConnection('Test', DatabaseName);
+  FConnection := TTSQLiteConnection.Create('Test');
   FContext := TTContext.Create(FConnection);
 
   FMasterData := TTList<TTMasterData>.Create;

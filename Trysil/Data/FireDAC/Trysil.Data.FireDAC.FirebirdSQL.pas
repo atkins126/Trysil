@@ -23,22 +23,23 @@ uses
   FireDAC.Stan.Param,
   FireDAC.Comp.Client,
 
+  Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC,
-  Trysil.Data.FireDAC.Connection,
   Trysil.Data.SqlSyntax,
   Trysil.Data.SqlSyntax.FirebirdSQL;
 
 type
 
-{ TTDataFirebirdSQLConnection }
+{ TTFirebirdSQLConnection }
 
-  TTDataFirebirdSQLConnection = class(TTDataFireDACConnection)
+  TTFirebirdSQLConnection = class(TTFireDACConnection)
   strict private
     class var VendorLib: String;
   strict private
     FDriverLink: TFDPhysFBDriverLink;
   strict protected
-    function CreateSyntaxClasses: TTDataSyntaxClasses; override;
+    function CreateSyntaxClasses: TTSyntaxClasses; override;
+    function GetDatabaseVersion: String; override;
   public
     constructor Create(const AConnectionName: String);
     destructor Destroy; override;
@@ -77,32 +78,37 @@ type
 
 implementation
 
-{ TTDataFirebirdSQLConnection }
+{ TTFirebirdSQLConnection }
 
-constructor TTDataFirebirdSQLConnection.Create(const AConnectionName: String);
+constructor TTFirebirdSQLConnection.Create(const AConnectionName: String);
 begin
   inherited Create(AConnectionName);
   FDriverLink := TFDPhysFBDriverLink.Create(nil);
 end;
 
-destructor TTDataFirebirdSQLConnection.Destroy;
+destructor TTFirebirdSQLConnection.Destroy;
 begin
   FDriverLink.Free;
   inherited Destroy;
 end;
 
-procedure TTDataFirebirdSQLConnection.AfterConstruction;
+procedure TTFirebirdSQLConnection.AfterConstruction;
 begin
   FDriverLink.VendorLib := VendorLib;
   inherited AfterConstruction;
 end;
 
-function TTDataFirebirdSQLConnection.CreateSyntaxClasses: TTDataSyntaxClasses;
+function TTFirebirdSQLConnection.CreateSyntaxClasses: TTSyntaxClasses;
 begin
-  result := TTDataFirebirdSQLSyntaxClasses.Create;
+  result := TTFirebirdSQLSyntaxClasses.Create;
 end;
 
-class procedure TTDataFirebirdSQLConnection.RegisterConnection(
+function TTFirebirdSQLConnection.GetDatabaseVersion: String;
+begin
+  result := Format('FirebirdSQL %s', [inherited GetDatabaseVersion]);
+end;
+
+class procedure TTFirebirdSQLConnection.RegisterConnection(
   const AName: String;
   const AServer: String;
   const ADatabaseName: String);
@@ -111,7 +117,7 @@ begin
     AName, AServer, String.Empty, String.Empty, ADatabaseName);
 end;
 
-class procedure TTDataFirebirdSQLConnection.RegisterConnection(
+class procedure TTFirebirdSQLConnection.RegisterConnection(
   const AName: String;
   const AServer: String;
   const AUsername: String;
@@ -121,7 +127,7 @@ begin
   RegisterConnection(AName, AServer, AUsername, APassword, ADatabaseName, '');
 end;
 
-class procedure TTDataFirebirdSQLConnection.RegisterConnection(
+class procedure TTFirebirdSQLConnection.RegisterConnection(
   const AName: String;
   const AServer: String;
   const AUsername: String;
@@ -148,17 +154,17 @@ begin
   end;
 end;
 
-class procedure TTDataFirebirdSQLConnection.RegisterConnection(
+class procedure TTFirebirdSQLConnection.RegisterConnection(
   const AName: String; const AParameters: TStrings);
 begin
   RegisterConnection(AName, VendorLib, AParameters);
 end;
 
-class procedure TTDataFirebirdSQLConnection.RegisterConnection(
+class procedure TTFirebirdSQLConnection.RegisterConnection(
   const AName: String; const AVendorLib: String; const AParameters: TStrings);
 begin
   VendorLib := AVendorLib;
-  TTDataFireDACConnectionPool.Instance.RegisterConnection(
+  TTFireDACConnectionPool.Instance.RegisterConnection(
     AName, 'FB', AParameters);
 end;
 

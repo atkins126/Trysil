@@ -20,54 +20,75 @@ uses
 
 type
 
-{ TTDataSqlServerSequenceSyntax }
+{ TTSqlServerSequenceSyntax }
 
-  TTDataSqlServerSequenceSyntax = class(TTDataSequenceSyntax)
+  TTSqlServerSequenceSyntax = class(TTSequenceSyntax)
   strict protected
     function GetSequenceSyntax: String; override;
   end;
 
-{ TTDataSqlServerSelectSyntax }
+{ TTSqlServerSelectSyntax }
 
-  TTDataSqlServerSelectSyntax = class(TTDataSelectSyntax)
+  TTSqlServerSelectSyntax = class(TTSelectSyntax)
   strict protected
     function GetFilterTopSyntax: String; override;
   end;
 
-{ TTDataSqlServerSyntaxClasses }
+{ TTSqlServerVersionSyntax }
 
-  TTDataSqlServerSyntaxClasses = class(TTDataSyntaxClasses)
+  TTSqlServerVersionSyntax = class(TTVersionSyntax)
+  strict protected
+    function GetSQL: String; override;
+  end;
+
+{ TTSqlServerSyntaxClasses }
+
+  TTSqlServerSyntaxClasses = class(TTSyntaxClasses)
   public
-    function Sequence: TTDataSequenceSyntaxClass; override;
-    function Select: TTDataSelectSyntaxClass; override;
+    function Sequence: TTSequenceSyntaxClass; override;
+    function Select: TTSelectSyntaxClass; override;
+    function Version: TTVersionSyntaxClass; override;
   end;
 
 implementation
 
-{ TTDataSqlServerSequenceSyntax }
+{ TTSqlServerSequenceSyntax }
 
-function TTDataSqlServerSequenceSyntax.GetSequenceSyntax: String;
+function TTSqlServerSequenceSyntax.GetSequenceSyntax: String;
 begin
-  result := Format('SELECT NEXT VALUE FOR [%s] AS ID', [FSequenceName]);
+  result := Format(
+    'SELECT NEXT VALUE FOR [%s] AS ID', [FTableMap.SequenceName]);
 end;
 
-{ TTDataSqlServerSelectSyntax }
+{ TTSqlServerSelectSyntax }
 
-function TTDataSqlServerSelectSyntax.GetFilterTopSyntax: String;
+function TTSqlServerSelectSyntax.GetFilterTopSyntax: String;
 begin
   result := Format('TOP %d', [FFilter.Top.MaxRecord]);
 end;
 
-{ TTDataSqlServerSyntaxClasses }
+{ TTSqlServerVersionSyntax }
 
-function TTDataSqlServerSyntaxClasses.Sequence: TTDataSequenceSyntaxClass;
+function TTSqlServerVersionSyntax.GetSQL: String;
 begin
-  result := TTDataSqlServerSequenceSyntax;
+  result := 'SELECT @@VERSION';
 end;
 
-function TTDataSqlServerSyntaxClasses.Select: TTDataSelectSyntaxClass;
+{ TTSqlServerSyntaxClasses }
+
+function TTSqlServerSyntaxClasses.Sequence: TTSequenceSyntaxClass;
 begin
-  result := TTDataSqlServerSelectSyntax;
+  result := TTSqlServerSequenceSyntax;
+end;
+
+function TTSqlServerSyntaxClasses.Select: TTSelectSyntaxClass;
+begin
+  result := TTSqlServerSelectSyntax;
+end;
+
+function TTSqlServerSyntaxClasses.Version: TTVersionSyntaxClass;
+begin
+  result := TTSqlServerVersionSyntax;
 end;
 
 end.

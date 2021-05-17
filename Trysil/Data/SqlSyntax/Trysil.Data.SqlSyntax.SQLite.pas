@@ -21,43 +21,52 @@ uses
 
 type
 
-{ TTDataSQLiteSequenceSyntax }
+{ TTSQLiteSequenceSyntax }
 
-  TTDataSQLiteSequenceSyntax = class(TTDataSequenceSyntax)
+  TTSQLiteSequenceSyntax = class(TTSequenceSyntax)
   strict protected
     function GetSequenceSyntax: String; override;
   end;
 
-{ TTDataSQLiteSelectSyntax }
+{ TTSQLiteSelectSyntax }
 
-  TTDataSQLiteSelectSyntax = class(TTDataSelectSyntax)
+  TTSQLiteSelectSyntax = class(TTSelectSyntax)
   strict protected
-    function GetSqlSyntax(
+    function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
 
     function GetFilterTopSyntax: String; override;
   end;
 
-{ TTDataSQLiteSyntaxClasses }
+{ TTSQLiteVersionSyntax }
 
-  TTDataSQLiteSyntaxClasses = class(TTDataSyntaxClasses)
+  TTSQLiteVersionSyntax = class(TTVersionSyntax)
+  strict protected
+    function GetSQL: String; override;
+  end;
+
+{ TTSQLiteSyntaxClasses }
+
+  TTSQLiteSyntaxClasses = class(TTSyntaxClasses)
   public
-    function Sequence: TTDataSequenceSyntaxClass; override;
-    function Select: TTDataSelectSyntaxClass; override;
+    function Sequence: TTSequenceSyntaxClass; override;
+    function Select: TTSelectSyntaxClass; override;
+    function Version: TTVersionSyntaxClass; override;
   end;
 
 implementation
 
-{ TTDataSQLiteSequenceSyntax }
+{ TTSQLiteSequenceSyntax }
 
-function TTDataSQLiteSequenceSyntax.GetSequenceSyntax: String;
+function TTSQLiteSequenceSyntax.GetSequenceSyntax: String;
 begin
-  result := Format('SELECT MAX(ROWID) + 1 FROM %s', [FSequenceName]);
+  result := Format(
+    'SELECT MAX(ROWID) + 1 FROM %s', [FTableMap.Name]);
 end;
 
-{ TTDataSQLiteSelectSyntax }
+{ TTSQLiteSelectSyntax }
 
-function TTDataSQLiteSelectSyntax.GetSqlSyntax(
+function TTSQLiteSelectSyntax.InternalGetSqlSyntax(
   const AWhereColumns: TArray<TTColumnMap>): String;
 var
   LResult: TStringBuilder;
@@ -80,21 +89,33 @@ begin
   end;
 end;
 
-function TTDataSQLiteSelectSyntax.GetFilterTopSyntax: String;
+function TTSQLiteSelectSyntax.GetFilterTopSyntax: String;
 begin
   result := Format('LIMIT %d', [FFilter.Top.MaxRecord]);
 end;
 
-{ TTDataSQLiteSyntaxClasses }
+{ TTSQLiteVersionSyntax }
 
-function TTDataSQLiteSyntaxClasses.Sequence: TTDataSequenceSyntaxClass;
+function TTSQLiteVersionSyntax.GetSQL: String;
 begin
-  result := TTDataSQLiteSequenceSyntax;
+  result := 'SELECT sqlite_version();';
 end;
 
-function TTDataSQLiteSyntaxClasses.Select: TTDataSelectSyntaxClass;
+{ TTSQLiteSyntaxClasses }
+
+function TTSQLiteSyntaxClasses.Sequence: TTSequenceSyntaxClass;
 begin
-  result := TTDataSQLiteSelectSyntax;
+  result := TTSQLiteSequenceSyntax;
+end;
+
+function TTSQLiteSyntaxClasses.Select: TTSelectSyntaxClass;
+begin
+  result := TTSQLiteSelectSyntax;
+end;
+
+function TTSQLiteSyntaxClasses.Version: TTVersionSyntaxClass;
+begin
+  result := TTSQLiteVersionSyntax;
 end;
 
 end.

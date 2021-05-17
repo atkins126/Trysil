@@ -28,132 +28,132 @@ uses
 
 type
 
-{ TTDataParameter }
+{ TTParameter }
 
-  TTDataParameter = class abstract
+  TTParameter = class abstract
   strict protected
-    FDatasetParam: TTDatasetParam;
+    FParam: TTParam;
     FMapper: TTMapper;
     FColumnMap: TTColumnMap;
   public
     constructor Create(
-      const ADatasetParam: TTDatasetParam;
+      const AParam: TTParam;
       const AMapper: TTMapper;
       const AColumnMap: TTColumnMap);
 
     procedure SetValue(const AEntity: TObject); virtual; abstract;
   end;
 
-  TTDataParameterClass = class of TTDataParameter;
+  TTParameterClass = class of TTParameter;
 
-{ TTDataStringParameter }
+{ TTStringParameter }
 
-  TTDataStringParameter = class(TTDataParameter)
+  TTStringParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataIntegerParameter }
+{ TTIntegerParameter }
 
-  TTDataIntegerParameter = class(TTDataParameter)
+  TTIntegerParameter = class(TTParameter)
   strict private
     procedure SetValueFromObject(const AObject: TObject);
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataLargeIntegerParameter }
+{ TTLargeIntegerParameter }
 
-  TTDataLargeIntegerParameter = class(TTDataParameter)
+  TTLargeIntegerParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataDoubleParameter }
+{ TTDoubleParameter }
 
-  TTDataDoubleParameter = class(TTDataParameter)
+  TTDoubleParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataBooleanParameter }
+{ TTBooleanParameter }
 
-  TTDataBooleanParameter = class(TTDataParameter)
+  TTBooleanParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataDateTimeParameter }
+{ TTDateTimeParameter }
 
-  TTDataDateTimeParameter = class(TTDataParameter)
+  TTDateTimeParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataGuidParameter }
+{ TTGuidParameter }
 
-  TTDataGuidParameter = class(TTDataParameter)
+  TTGuidParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataBlobParameter }
+{ TTBlobParameter }
 
-  TTDataBlobParameter = class(TTDataParameter)
+  TTBlobParameter = class(TTParameter)
   public
     procedure SetValue(const AEntity: TObject); override;
   end;
 
-{ TTDataParameterFactory }
+{ TTParameterFactory }
 
-  TTDataParameterFactory = class
+  TTParameterFactory = class
   strict private
-    class var FInstance: TTDataParameterFactory;
+    class var FInstance: TTParameterFactory;
     class constructor ClassCreate;
     class destructor ClassDestroy;
   strict private
-    FDataParameterTypes: TDictionary<TFieldType, TClass>;
+    FParameterTypes: TDictionary<TFieldType, TClass>;
   public
     constructor Create;
     destructor Destroy; override;
 
-    procedure RegisterParameterClass<C: TTDataParameter>(
+    procedure RegisterParameterClass<C: TTParameter>(
       const AFieldType: TFieldType);
 
     function CreateParameter(
       const AFieldType: TFieldType;
-      const ADatasetParam: TTDatasetParam;
+      const AParam: TTParam;
       const AMapper: TTMapper;
-      const AColumnMap: TTColumnMap): TTDataParameter;
+      const AColumnMap: TTColumnMap): TTParameter;
 
-    class property Instance: TTDataParameterFactory read FInstance;
+    class property Instance: TTParameterFactory read FInstance;
   end;
 
-{ TTDataParameterRegister }
+{ TTParameterRegister }
 
-  TTDataParameterRegister = class
+  TTParameterRegister = class
   public
     class procedure RegisterParameterClasses;
   end;
 
 implementation
 
-{ TTDataParameter }
+{ TTParameter }
 
-constructor TTDataParameter.Create(
-  const ADatasetParam: TTDatasetParam;
+constructor TTParameter.Create(
+  const AParam: TTParam;
   const AMapper: TTMapper;
   const AColumnMap: TTColumnMap);
 begin
   inherited Create;
-  FDatasetParam := ADatasetParam;
+  FParam := AParam;
   FMapper := AMapper;
   FColumnMap := AColumnMap;
 end;
 
-{ TTDataStringParameter }
+{ TTStringParameter }
 
-procedure TTDataStringParameter.SetValue(const AEntity: TObject);
+procedure TTStringParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<String>;
@@ -163,17 +163,17 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<String>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsString := LNullable;
+      FParam.AsString := LNullable;
   end
   else
-    FDatasetParam.AsString := LValue.AsType<String>();
+    FParam.AsString := LValue.AsType<String>();
 end;
 
-{ TTDataIntegerParameter }
+{ TTIntegerParameter }
 
-procedure TTDataIntegerParameter.SetValue(const AEntity: TObject);
+procedure TTIntegerParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Integer>;
@@ -183,22 +183,22 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Integer>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsInteger := LNullable;
+      FParam.AsInteger := LNullable;
   end
   else if FColumnMap.Member.IsClass then
     SetValueFromObject(LValue.AsObject)
   else
-    FDatasetParam.AsInteger := LValue.AsType<Integer>();
+    FParam.AsInteger := LValue.AsType<Integer>();
 end;
 
-procedure TTDataIntegerParameter.SetValueFromObject(const AObject: TObject);
+procedure TTIntegerParameter.SetValueFromObject(const AObject: TObject);
 var
   LTableMap: TTTableMap;
   LValue: TTValue;
 begin
-  if TRttiLazy.IsLazy(AObject) then
+  if TTRttiLazy.IsLazy(AObject) then
     LValue := FColumnMap.Member.GetValueFromObject(AObject)
   else
   begin
@@ -209,12 +209,12 @@ begin
       raise ETException.Create(SPrimaryKeyNotDefined);
     LValue := LTableMap.PrimaryKey.Member.GetValue(AObject);
   end;
-  FDatasetParam.AsInteger := LValue.AsType<Integer>();
+  FParam.AsInteger := LValue.AsType<Integer>();
 end;
 
-{ TTDataLargeIntegerParameter }
+{ TTLargeIntegerParameter }
 
-procedure TTDataLargeIntegerParameter.SetValue(const AEntity: TObject);
+procedure TTLargeIntegerParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Int64>;
@@ -224,17 +224,17 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Int64>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsLargeInt := LNullable;
+      FParam.AsLargeInt := LNullable;
   end
   else
-    FDatasetParam.AsLargeInt := LValue.AsType<Int64>();
+    FParam.AsLargeInt := LValue.AsType<Int64>();
 end;
 
-{ TTDataDoubleParameter }
+{ TTDoubleParameter }
 
-procedure TTDataDoubleParameter.SetValue(const AEntity: TObject);
+procedure TTDoubleParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Double>;
@@ -244,17 +244,17 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Double>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsDouble := LNullable;
+      FParam.AsDouble := LNullable;
   end
   else
-    FDatasetParam.AsDouble := LValue.AsType<Double>();
+    FParam.AsDouble := LValue.AsType<Double>();
 end;
 
-{ TTDataBooleanParameter }
+{ TTBooleanParameter }
 
-procedure TTDataBooleanParameter.SetValue(const AEntity: TObject);
+procedure TTBooleanParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Boolean>;
@@ -264,17 +264,17 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<Boolean>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsBoolean := LNullable;
+      FParam.AsBoolean := LNullable;
   end
   else
-    FDatasetParam.AsBoolean := LValue.AsType<Boolean>();
+    FParam.AsBoolean := LValue.AsType<Boolean>();
 end;
 
-{ TTDataDateTimeParameter }
+{ TTDateTimeParameter }
 
-procedure TTDataDateTimeParameter.SetValue(const AEntity: TObject);
+procedure TTDateTimeParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<TDateTime>;
@@ -284,17 +284,17 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<TDateTime>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsDateTime := LNullable;
+      FParam.AsDateTime := LNullable;
   end
   else
-    FDatasetParam.AsDateTime := LValue.AsType<TDateTime>();
+    FParam.AsDateTime := LValue.AsType<TDateTime>();
 end;
 
-{ TTDataGuidParameter }
+{ TTGuidParameter }
 
-procedure TTDataGuidParameter.SetValue(const AEntity: TObject);
+procedure TTGuidParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<TGuid>;
@@ -304,107 +304,107 @@ begin
   begin
     LNullable := LValue.AsType<TTNullable<TGuid>>();
     if LNullable.IsNull then
-      FDatasetParam.Clear()
+      FParam.Clear()
     else
-      FDatasetParam.AsGuid := LNullable;
+      FParam.AsGuid := LNullable;
   end
   else
-    FDatasetParam.AsGuid := LValue.AsType<TGuid>();
+    FParam.AsGuid := LValue.AsType<TGuid>();
 end;
 
-{ TTDataBlobParameter }
+{ TTBlobParameter }
 
-procedure TTDataBlobParameter.SetValue(const AEntity: TObject);
+procedure TTBlobParameter.SetValue(const AEntity: TObject);
 begin
-  raise ETException.Create(SBlobDataParameterValue);
+  raise ETException.Create(SBlobParameterValue);
 end;
 
-{ TTDataParameterFactory }
+{ TTParameterFactory }
 
-class constructor TTDataParameterFactory.ClassCreate;
+class constructor TTParameterFactory.ClassCreate;
 begin
-  FInstance := TTDataParameterFactory.Create;
-  TTDataParameterRegister.RegisterParameterClasses;
+  FInstance := TTParameterFactory.Create;
+  TTParameterRegister.RegisterParameterClasses;
 end;
 
-class destructor TTDataParameterFactory.ClassDestroy;
+class destructor TTParameterFactory.ClassDestroy;
 begin
   FInstance.Free;
 end;
 
-constructor TTDataParameterFactory.Create;
+constructor TTParameterFactory.Create;
 begin
   inherited Create;
-  FDataParameterTypes := TDictionary<TFieldType, TClass>.Create;
+  FParameterTypes := TDictionary<TFieldType, TClass>.Create;
 end;
 
-destructor TTDataParameterFactory.Destroy;
+destructor TTParameterFactory.Destroy;
 begin
-  FDataParameterTypes.Free;
+  FParameterTypes.Free;
   inherited Destroy;
 end;
 
-procedure TTDataParameterFactory.RegisterParameterClass<C>(
+procedure TTParameterFactory.RegisterParameterClass<C>(
   const AFieldType: TFieldType);
 begin
-  FDataParameterTypes.Add(AFieldType, C);
+  FParameterTypes.Add(AFieldType, C);
 end;
 
-function TTDataParameterFactory.CreateParameter(
+function TTParameterFactory.CreateParameter(
   const AFieldType: TFieldType;
-  const ADatasetParam: TTDatasetParam;
+  const AParam: TTParam;
   const AMapper: TTMapper;
-  const AColumnMap: TTColumnMap): TTDataParameter;
+  const AColumnMap: TTColumnMap): TTParameter;
 var
   LClass: TClass;
 begin
-  if not FDataParameterTypes.TryGetValue(AFieldType, LClass) then
+  if not FParameterTypes.TryGetValue(AFieldType, LClass) then
     raise ETException.CreateFmt(SParameterTypeError, [
       GetEnumName(TypeInfo(TFieldType), Ord(AFieldType))]);
-  result := TTDataParameterClass(LClass).Create(
-    ADatasetParam, AMapper, AColumnMap);
+  result := TTParameterClass(LClass).Create(
+    AParam, AMapper, AColumnMap);
 end;
 
-{ TTDataParameterRegister }
+{ TTParameterRegister }
 
-class procedure TTDataParameterRegister.RegisterParameterClasses;
+class procedure TTParameterRegister.RegisterParameterClasses;
 var
-  LInstance: TTDataParameterFactory;
+  LInstance: TTParameterFactory;
 begin
-  LInstance := TTDataParameterFactory.Instance;
+  LInstance := TTParameterFactory.Instance;
 
-  // TTDataStringParameter
-  LInstance.RegisterParameterClass<TTDataStringParameter>(TFieldType.ftString);
-  LInstance.RegisterParameterClass<TTDataStringParameter>(TFieldType.ftWideString);
-  LInstance.RegisterParameterClass<TTDataStringParameter>(TFieldType.ftMemo);
-  LInstance.RegisterParameterClass<TTDataStringParameter>(TFieldType.ftWideMemo);
+  // TTStringParameter
+  LInstance.RegisterParameterClass<TTStringParameter>(TFieldType.ftString);
+  LInstance.RegisterParameterClass<TTStringParameter>(TFieldType.ftWideString);
+  LInstance.RegisterParameterClass<TTStringParameter>(TFieldType.ftMemo);
+  LInstance.RegisterParameterClass<TTStringParameter>(TFieldType.ftWideMemo);
 
-  // TTDataIntegerParameter
-  LInstance.RegisterParameterClass<TTDataIntegerParameter>(TFieldType.ftSmallint);
-  LInstance.RegisterParameterClass<TTDataIntegerParameter>(TFieldType.ftInteger);
+  // TTIntegerParameter
+  LInstance.RegisterParameterClass<TTIntegerParameter>(TFieldType.ftSmallint);
+  LInstance.RegisterParameterClass<TTIntegerParameter>(TFieldType.ftInteger);
 
-  // TTDataLargeIntegerParameter
-  LInstance.RegisterParameterClass<TTDataLargeIntegerParameter>(TFieldType.ftLargeint);
+  // TTLargeIntegerParameter
+  LInstance.RegisterParameterClass<TTLargeIntegerParameter>(TFieldType.ftLargeint);
 
-  // TTDataDoubleParameter
-  LInstance.RegisterParameterClass<TTDataDoubleParameter>(TFieldType.ftBCD);
-  LInstance.RegisterParameterClass<TTDataDoubleParameter>(TFieldType.ftFloat);
-  LInstance.RegisterParameterClass<TTDataDoubleParameter>(TFieldType.ftSingle);
-  LInstance.RegisterParameterClass<TTDataDoubleParameter>(TFieldType.ftCurrency);
+  // TTDoubleParameter
+  LInstance.RegisterParameterClass<TTDoubleParameter>(TFieldType.ftBCD);
+  LInstance.RegisterParameterClass<TTDoubleParameter>(TFieldType.ftFloat);
+  LInstance.RegisterParameterClass<TTDoubleParameter>(TFieldType.ftSingle);
+  LInstance.RegisterParameterClass<TTDoubleParameter>(TFieldType.ftCurrency);
 
-  // TTDataBooleanParameter
-  LInstance.RegisterParameterClass<TTDataBooleanParameter>(TFieldType.ftBoolean);
+  // TTBooleanParameter
+  LInstance.RegisterParameterClass<TTBooleanParameter>(TFieldType.ftBoolean);
 
-  // TTDataDateTimeParameter
-  LInstance.RegisterParameterClass<TTDataDateTimeParameter>(TFieldType.ftDate);
-  LInstance.RegisterParameterClass<TTDataDateTimeParameter>(TFieldType.ftDateTime);
-  LInstance.RegisterParameterClass<TTDataDateTimeParameter>(TFieldType.ftTimeStamp);
+  // TTDateTimeParameter
+  LInstance.RegisterParameterClass<TTDateTimeParameter>(TFieldType.ftDate);
+  LInstance.RegisterParameterClass<TTDateTimeParameter>(TFieldType.ftDateTime);
+  LInstance.RegisterParameterClass<TTDateTimeParameter>(TFieldType.ftTimeStamp);
 
-  // TTDataGuidParameter
-  LInstance.RegisterParameterClass<TTDataGuidParameter>(TFieldType.ftGuid);
+  // TTGuidParameter
+  LInstance.RegisterParameterClass<TTGuidParameter>(TFieldType.ftGuid);
 
-  // TTDataBlobParameter
-  LInstance.RegisterParameterClass<TTDataBlobParameter>(TFieldType.ftBlob);
+  // TTBlobParameter
+  LInstance.RegisterParameterClass<TTBlobParameter>(TFieldType.ftBlob);
 end;
 
 end.

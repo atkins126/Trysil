@@ -29,9 +29,9 @@ uses
 
 type
 
-{ TTDatasetParam }
+{ TTParam }
 
-  TTDatasetParam = class abstract
+  TTParam = class abstract
   strict protected
     function GetAsString: String; virtual; abstract;
     procedure SetAsString(const Value: String); virtual; abstract;
@@ -59,12 +59,13 @@ type
     property AsGuid: TGUID read GetAsGuid write SetAsGuid;
   end;
 
-{ TTDataReader }
+{ TTReader }
 
-  TTDataReader = class abstract
+  TTReader = class abstract
   strict private
     FTableMap: TTTableMap;
-    FColumns: TObjectDictionary<String, TTDataColumn>;
+    FColumns: TObjectDictionary<String, TTColumn>;
+    FDataset: TDataset;
 
     function GetEof: Boolean;
     function GetIsEmpty: Boolean;
@@ -76,7 +77,7 @@ type
 
     procedure AfterConstruction; override;
 
-    function ColumnByName(const AColumnName: String): TTDataColumn;
+    function ColumnByName(const AColumnName: String): TTColumn;
 
     procedure Next;
 
@@ -88,9 +89,9 @@ type
 
   TTUpdateMode = (KeyAndVersionColumn, KeyOnly);
 
-{ TTDataAbstractCommand }
+{ TTAbstractCommand }
 
-  TTDataAbstractCommand = class abstract
+  TTAbstractCommand = class abstract
   strict protected
     FMapper: TTMapper;
     FTableMap: TTTableMap;
@@ -109,24 +110,15 @@ type
       const AEntity: TObject; const AEvent: TTEvent); virtual; abstract;
   end;
 
-{ TTDataInsertCommand }
+{ TTConnection }
 
-  TTDataInsertCommand = class abstract(TTDataAbstractCommand);
-
-{ TTDataUpdateCommand }
-
-  TTDataUpdateCommand = class abstract(TTDataAbstractCommand);
-
-{ TTDataDeleteCommand }
-
-  TTDataDeleteCommand = class abstract(TTDataAbstractCommand);
-
-{ TTDataConnection }
-
-  TTDataConnection = class abstract(TTMetadataProvider)
+  TTConnection = class abstract(TTMetadataProvider)
   strict protected
     FUpdateMode: TTUpdateMode;
 
+    function GetDatabaseVersion: String; virtual; abstract;
+    function InternalCreateDataSet(
+      const ASQL: String): TDataSet; virtual; abstract;
     function GetInTransaction: Boolean; virtual; abstract;
     function SelectCount(
       const ATableMap: TTTableMap;
@@ -146,12 +138,12 @@ type
       const AParameterName: String): String;
 
     function GetSequenceID(
-      const ASequenceName: String): TTPrimaryKey; virtual; abstract;
+      const ATableMap: TTTableMap): TTPrimaryKey; virtual; abstract;
 
     procedure CheckRelations(
       const ATableMap: TTTableMap; const AEntity: TObject);
 
-    function CreateDataSet(const ASQL: String): TDataSet; virtual; abstract;
+    function CreateDataSet(const ASQL: String): TDataSet;
 
     function Execute(
       const ASQL: String;
@@ -166,82 +158,85 @@ type
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata;
-      const AFilter: TTFilter): TTDataReader; virtual; abstract;
+      const AFilter: TTFilter): TTReader; virtual; abstract;
 
     function CreateInsertCommand(
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
-      const ATableMetadata: TTTableMetadata): TTDataInsertCommand; virtual; abstract;
+      const ATableMetadata: TTTableMetadata): TTAbstractCommand; virtual; abstract;
 
     function CreateUpdateCommand(
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
-      const ATableMetadata: TTTableMetadata): TTDataUpdateCommand; virtual; abstract;
+      const ATableMetadata: TTTableMetadata): TTAbstractCommand; virtual; abstract;
 
     function CreateDeleteCommand(
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
-      const ATableMetadata: TTTableMetadata): TTDataDeleteCommand; virtual; abstract;
+      const ATableMetadata: TTTableMetadata): TTAbstractCommand; virtual; abstract;
 
+    property DatabaseVersion: String read GetDatabaseVersion;
     property InTransaction: Boolean read GetInTransaction;
     property UpdateMode: TTUpdateMode read FUpdateMode write FUpdateMode;
   end;
 
 implementation
 
-{ TTDataReader }
+{ TTReader }
 
-constructor TTDataReader.Create(const ATableMap: TTTableMap);
+constructor TTReader.Create(const ATableMap: TTTableMap);
 begin
   inherited Create;
   FTableMap := ATableMap;
-  FColumns := TObjectDictionary<String, TTDataColumn>.Create([doOwnsValues]);
+  FColumns := TObjectDictionary<String, TTColumn>.Create([doOwnsValues]);
+  FDataset := nil;
 end;
 
-destructor TTDataReader.Destroy;
+destructor TTReader.Destroy;
 begin
+  if Assigned(FDataset) then
+    FDataset.Free;
   FColumns.Free;
   inherited Destroy;
 end;
 
-procedure TTDataReader.AfterConstruction;
+procedure TTReader.AfterConstruction;
 var
-  LDataset: TDataset;
   LColumnMap: TTColumnMap;
 begin
   inherited AfterConstruction;
-  LDataset := GetDataset;
+  FDataset := GetDataset;
   for LColumnMap in FTableMap.Columns do
     FColumns.Add(
       LColumnMap.Name,
-      TTDataColumnFactory.Instance.CreateColumn(
-        LDataset.FieldByName(LColumnMap.Name), LColumnMap));
+      TTColumnFactory.Instance.CreateColumn(
+        FDataset.FieldByName(LColumnMap.Name), LColumnMap));
 end;
 
-function TTDataReader.ColumnByName(const AColumnName: String): TTDataColumn;
+function TTReader.ColumnByName(const AColumnName: String): TTColumn;
 begin
   if not FColumns.TryGetValue(AColumnName, result) then
     raise ETException.CreateFmt(SColumnNotFound, [AColumnName]);
 end;
 
-function TTDataReader.GetEof: Boolean;
+function TTReader.GetEof: Boolean;
 begin
-  result := GetDataset.Eof;
+  result := FDataset.Eof;
 end;
 
-function TTDataReader.GetIsEmpty: Boolean;
+function TTReader.GetIsEmpty: Boolean;
 begin
-  result := GetDataset.IsEmpty;
+  result := FDataset.IsEmpty;
 end;
 
-procedure TTDataReader.Next;
+procedure TTReader.Next;
 begin
-  GetDataset.Next;
+  FDataset.Next;
 end;
 
-{ TTDataAbstractCommand }
+{ TTAbstractCommand }
 
-constructor TTDataAbstractCommand.Create(
+constructor TTAbstractCommand.Create(
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata;
@@ -254,7 +249,7 @@ begin
   FUpdateMode := AUpdateMode;
 end;
 
-function TTDataAbstractCommand.GetWhereColumns: TArray<TTColumnMap>;
+function TTAbstractCommand.GetWhereColumns: TArray<TTColumnMap>;
 var
   LLength: Integer;
 begin
@@ -267,15 +262,26 @@ begin
     result[1] := FTableMap.VersionColumn;
 end;
 
-{ TTDataConnection }
+{ TTConnection }
 
-constructor TTDataConnection.Create;
+constructor TTConnection.Create;
 begin
   inherited Create;
   FUpdateMode := TTUpdateMode.KeyAndVersionColumn;
 end;
 
-procedure TTDataConnection.CheckRelations(
+function TTConnection.CreateDataSet(const ASQL: String): TDataSet;
+begin
+  result := InternalCreateDataSet(ASQL);
+  try
+    result.Open;
+  except
+    result.Free;
+    raise;
+  end;
+end;
+
+procedure TTConnection.CheckRelations(
   const ATableMap: TTTableMap; const AEntity: TObject);
 var
   LRelation: TTRelationMap;
@@ -287,18 +293,18 @@ begin
         raise ETException.CreateFmt(SRelationError, [AEntity.ToString()]);
 end;
 
-function TTDataConnection.Execute(const ASQL: String): Integer;
+function TTConnection.Execute(const ASQL: String): Integer;
 begin
   result := Execute(ASQL, nil, nil, nil, nil);
 end;
 
-function TTDataConnection.GetDatabaseObjectName(
+function TTConnection.GetDatabaseObjectName(
   const ADatabaseObjectName: String): String;
 begin
   result := ADatabaseObjectName;
 end;
 
-function TTDataConnection.GetParameterName(
+function TTConnection.GetParameterName(
   const AParameterName: String): String;
 begin
   result := AParameterName.Replace(' ', '_', [rfReplaceAll]);

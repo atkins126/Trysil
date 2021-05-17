@@ -20,55 +20,76 @@ uses
 
 type
 
-{ TTDataFirebirdSQLSequenceSyntax }
+{ TTFirebirdSQLSequenceSyntax }
 
-  TTDataFirebirdSQLSequenceSyntax = class(TTDataSequenceSyntax)
+  TTFirebirdSQLSequenceSyntax = class(TTSequenceSyntax)
   strict protected
     function GetSequenceSyntax: String; override;
   end;
 
-{ TTDataFirebirdSQLSelectSyntax }
+{ TTFirebirdSQLSelectSyntax }
 
-  TTDataFirebirdSQLSelectSyntax = class(TTDataSelectSyntax)
+  TTFirebirdSQLSelectSyntax = class(TTSelectSyntax)
   strict protected
     function GetFilterTopSyntax: String; override;
   end;
 
-{ TTDataFirebirdSQLSyntaxClasses }
+{ TTFirebirdSQLVersionSyntax }
 
-  TTDataFirebirdSQLSyntaxClasses = class(TTDataSyntaxClasses)
+  TTFirebirdSQLVersionSyntax = class(TTVersionSyntax)
+  strict protected
+    function GetSQL: String; override;
+  end;
+
+{ TTFirebirdSQLSyntaxClasses }
+
+  TTFirebirdSQLSyntaxClasses = class(TTSyntaxClasses)
   public
-    function Sequence: TTDataSequenceSyntaxClass; override;
-    function Select: TTDataSelectSyntaxClass; override;
+    function Sequence: TTSequenceSyntaxClass; override;
+    function Select: TTSelectSyntaxClass; override;
+    function Version: TTVersionSyntaxClass; override;
   end;
 
 implementation
 
-{ TTDataFirebirdSQLSequenceSyntax }
+{ TTFirebirdSQLSequenceSyntax }
 
-function TTDataFirebirdSQLSequenceSyntax.GetSequenceSyntax: String;
+function TTFirebirdSQLSequenceSyntax.GetSequenceSyntax: String;
 begin
-  result :=
-    Format('SELECT GEN_ID(%s, 1) ID FROM RDB$DATABASE', [FSequenceName]);
+  result := Format(
+    'SELECT GEN_ID(%s, 1) ID FROM RDB$DATABASE', [FTableMap.SequenceName]);
 end;
 
-{ TTDataFirebirdSQLSelectSyntax }
+{ TTFirebirdSQLSelectSyntax }
 
-function TTDataFirebirdSQLSelectSyntax.GetFilterTopSyntax: String;
+function TTFirebirdSQLSelectSyntax.GetFilterTopSyntax: String;
 begin
   result := Format('FIRST %d', [FFilter.Top.MaxRecord]);
 end;
 
-{ TTDataFirebirdSQLSyntaxClasses }
+{ TTFirebirdSQLVersionSyntax }
 
-function TTDataFirebirdSQLSyntaxClasses.Sequence: TTDataSequenceSyntaxClass;
+function TTFirebirdSQLVersionSyntax.GetSQL: String;
 begin
-  result := TTDataFirebirdSQLSequenceSyntax;
+  result := 'SELECT rdb$get_context(''SYSTEM'', ''ENGINE_VERSION'') ' +
+    'from rdb$database';
 end;
 
-function TTDataFirebirdSQLSyntaxClasses.Select: TTDataSelectSyntaxClass;
+{ TTFirebirdSQLSyntaxClasses }
+
+function TTFirebirdSQLSyntaxClasses.Sequence: TTSequenceSyntaxClass;
 begin
-  result := TTDataFirebirdSQLSelectSyntax;
+  result := TTFirebirdSQLSequenceSyntax;
+end;
+
+function TTFirebirdSQLSyntaxClasses.Select: TTSelectSyntaxClass;
+begin
+  result := TTFirebirdSQLSelectSyntax;
+end;
+
+function TTFirebirdSQLSyntaxClasses.Version: TTVersionSyntaxClass;
+begin
+  result := TTFirebirdSQLVersionSyntax;
 end;
 
 end.

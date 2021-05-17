@@ -22,18 +22,19 @@ uses
   FireDAC.Stan.Param,
   FireDAC.Comp.Client,
 
+  Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC,
-  Trysil.Data.FireDAC.Connection,
   Trysil.Data.SqlSyntax,
   Trysil.Data.SqlSyntax.SQLite;
 
 type
 
-{ TTDataSQLiteConnection }
+{ TTSQLiteConnection }
 
-  TTDataSQLiteConnection = class(TTDataFireDACConnection)
+  TTSQLiteConnection = class(TTFireDACConnection)
   strict protected
-    function CreateSyntaxClasses: TTDataSyntaxClasses; override;
+    function CreateSyntaxClasses: TTSyntaxClasses; override;
+    function GetDatabaseVersion: String; override;
   public
     class procedure RegisterConnection(
       const AName: String; const ADatabaseName: String); overload;
@@ -50,20 +51,25 @@ type
 
 implementation
 
-{ TTDataSQLiteConnection }
+{ TTSQLiteConnection }
 
-function TTDataSQLiteConnection.CreateSyntaxClasses: TTDataSyntaxClasses;
+function TTSQLiteConnection.CreateSyntaxClasses: TTSyntaxClasses;
 begin
-  result := TTDataSQLiteSyntaxClasses.Create;
+  result := TTSQLiteSyntaxClasses.Create;
 end;
 
-class procedure TTDataSQLiteConnection.RegisterConnection(
+function TTSQLiteConnection.GetDatabaseVersion: String;
+begin
+  result := Format('SQLite %s', [inherited GetDatabaseVersion]);
+end;
+
+class procedure TTSQLiteConnection.RegisterConnection(
   const AName: String; const ADatabaseName: String);
 begin
   RegisterConnection(AName, String.Empty, String.Empty, ADatabaseName);
 end;
 
-class procedure TTDataSQLiteConnection.RegisterConnection(
+class procedure TTSQLiteConnection.RegisterConnection(
   const AName: String;
   const AUsername: String;
   const APassword: String;
@@ -85,10 +91,10 @@ begin
   end;
 end;
 
-class procedure TTDataSQLiteConnection.RegisterConnection(
+class procedure TTSQLiteConnection.RegisterConnection(
   const AName: String; const AParameters: TStrings);
 begin
-  TTDataFireDACConnectionPool.Instance.RegisterConnection(
+  TTFireDACConnectionPool.Instance.RegisterConnection(
     AName, 'SQLite', AParameters);
 end;
 
