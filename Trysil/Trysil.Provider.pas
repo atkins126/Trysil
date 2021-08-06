@@ -39,11 +39,11 @@ type
     FContext: TObject;
     FMetadata: TTMetadata;
     FMapper: TTMapper;
-
     FIdentityMap: TTIdentityMap;
+
     FLazyOwner: TObjectList<TObject>;
 
-    function InternalCreateEntity<T: class, constructor>(
+    function InternalCreateEntity<T: class>(
       const ATableMap: TTTAbleMap; const AReader: TTReader): T;
 
     function GetValue(
@@ -95,15 +95,15 @@ type
       const AUseIdentityMap: Boolean);
     destructor Destroy; override;
 
-    function CreateEntity<T: class, constructor>(): T;
-    function CloneEntity<T: class, constructor>(const AEntity: T): T;
+    function CreateEntity<T: class>(): T;
+    function CloneEntity<T: class>(const AEntity: T): T;
 
     function GetMetadata<T: class>(): TTTableMetadata;
 
-    procedure Select<T: class, constructor>(
+    procedure Select<T: class>(
       const AResult: TTList<T>; const AFilter: TTFilter);
 
-    function Get<T: class, constructor>(const AID: TTPrimaryKey): T;
+    function Get<T: class>(const AID: TTPrimaryKey): T;
 
     procedure Refresh<T: class>(const AEntity: T);
   end;
@@ -134,15 +134,16 @@ end;
 
 destructor TTProvider.Destroy;
 begin
-  FLazyOwner.Free;
   if Assigned(FIdentityMap) then
     FIdentityMap.Free;
+  FLazyOwner.Free;
   inherited Destroy;
 end;
 
 function TTProvider.CreateEntity<T>(): T;
 var
   LTableMap: TTTableMap;
+  LRttiEntity: TTRttiEntity<T>;
   LPrimaryKey: TTPrimaryKey;
   LColumnMap: TTColumnMap;
 begin
@@ -152,19 +153,24 @@ begin
   if LTableMap.SequenceName.IsEmpty then
     raise ETException.Create(SNotDefinedSequence);
 
-  result := T.Create;
+  LRttiEntity := TTRttiEntity<T>.Create;
   try
-    LPrimaryKey := FConnection.GetSequenceID(LTableMap);
-    LTableMap.PrimaryKey.Member.SetValue(result, LPrimaryKey);
+    result := LRttiEntity.CreateEntity(FContext);
+    try
+      LPrimaryKey := FConnection.GetSequenceID(LTableMap);
+      LTableMap.PrimaryKey.Member.SetValue(result, LPrimaryKey);
 
-    MapLazyColumns(LTableMap, nil, result);
-    MapLazyListColumns(LTableMap, nil, result);
+      MapLazyColumns(LTableMap, nil, result);
+      MapLazyListColumns(LTableMap, nil, result);
 
-    if Assigned(FIdentityMap) then
-      FIdentityMap.AddEntity<T>(LPrimaryKey, result);
-  except
-    result.Free;
-    raise;
+      if Assigned(FIdentityMap) then
+        FIdentityMap.AddEntity<T>(LPrimaryKey, result);
+    except
+      result.Free;
+      raise;
+    end;
+  finally
+    LRttiEntity.Free;
   end;
 end;
 
@@ -172,6 +178,7 @@ function TTProvider.InternalCreateEntity<T>(
   const ATableMap: TTTAbleMap; const AReader: TTReader): T;
 var
   LPrimaryKey: TTPrimaryKey;
+  LRttiEntity: TTRttiEntity<T>;
 begin
   LPrimaryKey := GetPrimaryKey(ATableMap, AReader);
   result := nil;
@@ -180,9 +187,14 @@ begin
 
   if not Assigned(result) then
   begin
-    result := T.Create;
-    if Assigned(FIdentityMap) then
-      FIdentityMap.AddEntity<T>(LPrimaryKey, result);
+    LRttiEntity := TTRttiEntity<T>.Create;
+    try
+      result := LRttiEntity.CreateEntity(FContext);
+      if Assigned(FIdentityMap) then
+        FIdentityMap.AddEntity<T>(LPrimaryKey, result);
+    finally
+      LRttiEntity.Free;
+    end;
   end;
 
   MapEntity(ATableMap, AReader, result);
@@ -191,22 +203,28 @@ end;
 function TTProvider.CloneEntity<T>(const AEntity: T): T;
 var
   LTableMap: TTTableMap;
+  LRttiEntity: TTRttiEntity<T>;
   LColumnMap: TTColumnMap;
   LDetailColumnMap: TTDetailColumnMap;
 begin
   LTableMap := FMapper.Load<T>();
-  result := T.Create;
+  LRttiEntity := TTRttiEntity<T>.Create;
   try
-    MapLazyColumns(LTableMap, nil, result);
-    MapLazyListColumns(LTableMap, nil, result);
-    for LColumnMap in LTableMap.Columns do
-      LColumnMap.Member.SetValue(result, LColumnMap.Member.GetValue(AEntity));
-    for LDetailColumnMap in LTableMap.DetailColums do
-      LDetailColumnMap.Member.SetValue(
-        result, LDetailColumnMap.Member.GetValue(AEntity));
-  except
-    result.Free;
-    raise;
+    result := LRttiEntity.CreateEntity(FContext);
+    try
+      MapLazyColumns(LTableMap, nil, result);
+      MapLazyListColumns(LTableMap, nil, result);
+      for LColumnMap in LTableMap.Columns do
+        LColumnMap.Member.SetValue(result, LColumnMap.Member.GetValue(AEntity));
+      for LDetailColumnMap in LTableMap.DetailColums do
+        LDetailColumnMap.Member.SetValue(
+          result, LDetailColumnMap.Member.GetValue(AEntity));
+    except
+      result.Free;
+      raise;
+    end;
+  finally
+    LRttiEntity.Free;
   end;
 end;
 
@@ -469,6 +487,7 @@ begin
   LReader := FConnection.CreateReader(
     FMapper, LTableMap, LTableMetadata, LFilter);
   try
+    if not LReader.IsEmpty then
       MapEntity(LTableMap, LReader, AEntity);
   finally
     LReader.Free;

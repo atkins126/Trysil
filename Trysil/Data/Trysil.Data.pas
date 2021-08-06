@@ -120,11 +120,11 @@ type
     function InternalCreateDataSet(
       const ASQL: String): TDataSet; virtual; abstract;
     function GetInTransaction: Boolean; virtual; abstract;
-    function SelectCount(
+    function CheckExists(
       const ATableMap: TTTableMap;
       const ATableName: String;
       const AColumnName: String;
-      const AEntity: TObject): Integer; virtual; abstract;
+      const AEntity: TObject): Boolean; virtual; abstract;
   public
     constructor Create;
 
@@ -207,10 +207,14 @@ begin
   inherited AfterConstruction;
   FDataset := GetDataset;
   for LColumnMap in FTableMap.Columns do
+  begin
+    if FColumns.ContainsKey(LColumnMap.Name) then
+      raise ETException.CreateFmt(SDuplicateColumn, [LColumnMap.Name]);
     FColumns.Add(
       LColumnMap.Name,
       TTColumnFactory.Instance.CreateColumn(
         FDataset.FieldByName(LColumnMap.Name), LColumnMap));
+  end;
 end;
 
 function TTReader.ColumnByName(const AColumnName: String): TTColumn;
@@ -288,8 +292,8 @@ var
 begin
   for LRelation in ATableMap.Relations do
     if not LRelation.IsCascade then
-      if SelectCount(
-        ATableMap, LRelation.TableName, LRelation.ColumnName, AEntity) > 0 then
+      if CheckExists(
+        ATableMap, LRelation.TableName, LRelation.ColumnName, AEntity) then
         raise ETException.CreateFmt(SRelationError, [AEntity.ToString()]);
 end;
 

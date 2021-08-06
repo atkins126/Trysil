@@ -34,12 +34,14 @@ resourcestring
   SReadOnlyPrimaryKey = '"Primary Key" is not defined.';
   SPropertyIDNotFound = 'Property ID not found';
   STypeIsNotAList = 'Type %0:s is not a generic list.';
+  STypeHasNotValidConstructor = 'Type %0:s has not a valid constructor.';
   SClonedEntity = 'Can not insert a cloned entity: "%0:s".';
   SNotValidEntity = 'Not valid cloned entity: "%0:s".';
   SDeletedEntity = 'Cloned entity "%0:s" was deleted.';
   SSessionNotTwice = 'Session can not be used twice.';
   SNullableTypeHasNoValue = 'Nullable type has no value: invalid operation.';
   SCannotAssignPointerToNullable = 'Cannot assign non-null pointer to nullable type.';
+  SDuplicateColumn = 'Duplicate column definition: %0:s.';
   SColumnNotFound = 'Column %0:s not found.';
   SRelationError = '"%0:s" is currently in use, unable to delete.';
   SColumnTypeError = 'Column non registered for type %0:s.';

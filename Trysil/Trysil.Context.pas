@@ -34,6 +34,7 @@ type
   TTContext = class
   strict private
     FConnection: TTConnection;
+
     FMapper: TTMapper;
     FMetadata: TTMetadata;
     FProvider: TTProvider;
@@ -51,17 +52,18 @@ type
     procedure CommitTransaction;
     procedure RollbackTransaction;
 
-    function CreateEntity<T: class, constructor>(): T;
-    function CreateSession<T: class, constructor>(
+    function CreateEntity<T: class>(): T;
+    function CloneEntity<T: class>(const AEntity: T): T;
+    function CreateSession<T: class>(
       const AList: TList<T>): TTSession<T>;
 
     function GetMetadata<T: class>(): TTTableMetadata;
 
-    procedure SelectAll<T: class, constructor>(const AResult: TTList<T>);
-    procedure Select<T: class, constructor>(
+    procedure SelectAll<T: class>(const AResult: TTList<T>);
+    procedure Select<T: class>(
       const AResult: TTList<T>; const AFilter: TTFilter);
 
-    function Get<T: class, constructor>(const AID: TTPrimaryKey): T;
+    function Get<T: class>(const AID: TTPrimaryKey): T;
 
     procedure Refresh<T: class>(const AEntity: T);
 
@@ -82,14 +84,14 @@ begin
 end;
 
 constructor TTContext.Create(
-  const AConnection: TTConnection;
-  const AUseIdentityMap: Boolean);
+  const AConnection: TTConnection; const AUseIdentityMap: Boolean);
 begin
   inherited Create;
   FConnection := AConnection;
 
   FMapper := TTMapper.Create;
   FMetadata := TTMetadata.Create(FMapper, FConnection);
+
   FProvider := TTProvider.Create(
     FConnection, Self, FMetadata, FMapper, AUseIdentityMap);
   FResolver := TTResolver.Create(FConnection, Self, FMetadata, FMapper);
@@ -127,6 +129,11 @@ end;
 function TTContext.CreateEntity<T>(): T;
 begin
   result := FProvider.CreateEntity<T>();
+end;
+
+function TTContext.CloneEntity<T>(const AEntity: T): T;
+begin
+  result := FProvider.CloneEntity<T>(AEntity);
 end;
 
 function TTContext.CreateSession<T>(const AList: TList<T>): TTSession<T>;

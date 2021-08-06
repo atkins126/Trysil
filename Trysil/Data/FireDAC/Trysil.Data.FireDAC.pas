@@ -21,7 +21,6 @@ uses
   FireDAC.Stan.Param,
   FireDAC.Comp.Client,
 
-  Trysil.Consts,
   Trysil.Types,
   Trysil.Filter,
   Trysil.Exceptions,
@@ -80,7 +79,6 @@ type
       const AEntity: TObject);
   strict protected
     function InternalCreateDataSet(const ASQL: String): TDataSet; override;
-    function GetDatabaseVersion: String; override;
     function GetInTransaction: Boolean; override;
   public
     constructor Create(const AConnectionName: String);
@@ -189,18 +187,18 @@ end;
 
 constructor TTFireDACConnection.Create(const AConnectionName: String);
 begin
-    inherited Create;
-    FConnectionName := AConnectionName;
+  inherited Create;
+  FConnectionName := AConnectionName;
 
-    FWaitCursor := TFDGUIxWaitCursor.Create(nil);
-    FConnection := TFDConnection.Create(nil);
+  FWaitCursor := TFDGUIxWaitCursor.Create(nil);
+  FConnection := TFDConnection.Create(nil);
 end;
 
 destructor TTFireDACConnection.Destroy;
 begin
-    FConnection.Free;
-    FWaitCursor.Free;
-    inherited Destroy;
+  FConnection.Free;
+  FWaitCursor.Free;
+  inherited Destroy;
 end;
 
 procedure TTFireDACConnection.AfterConstruction;
@@ -242,50 +240,25 @@ end;
 
 procedure TTFireDACConnection.StartTransaction;
 begin
-  if FConnection.InTransaction then
-    raise ETException.CreateFmt(SInTransaction, ['StartTransaction']);
+  inherited StartTransaction;
   FConnection.StartTransaction;
 end;
 
 procedure TTFireDACConnection.CommitTransaction;
 begin
-  if not FConnection.InTransaction then
-    raise ETException.CreateFmt(SNotInTransaction, ['CommitTransaction']);
+  inherited CommitTransaction;
   FConnection.Commit;
 end;
 
 procedure TTFireDACConnection.RollbackTransaction;
 begin
-  if not FConnection.InTransaction then
-    raise ETException.CreateFmt(SNotInTransaction, ['RollbackTransaction']);
+  inherited RollbackTransaction;
   FConnection.Rollback;
 end;
 
 function TTFireDACConnection.GetInTransaction: Boolean;
 begin
   result := FConnection.InTransaction;
-end;
-
-function TTFireDACConnection.GetDatabaseVersion: String;
-var
-  LSyntax: TTVersionSyntax;
-  LDataSet: TFDQuery;
-begin
-  result := string.Empty;
-  LSyntax := SyntaxClasses.Version.Create;
-  try
-    LDataSet := TFDQuery.Create(nil);
-    try
-      LDataSet.Connection := FConnection;
-      LDataSet.Open(LSyntax.SQL);
-      if not LDataSet.IsEmpty then
-        result := LDataSet.Fields[0].AsString;
-    finally
-      LDataSet.Free;
-    end;
-  finally
-    LSyntax.Free;
-  end;
 end;
 
 procedure TTFireDACConnection.SetParameters(

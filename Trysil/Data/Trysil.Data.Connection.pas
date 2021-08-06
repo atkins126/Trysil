@@ -1,3 +1,13 @@
+(*
+
+  Trysil
+  Copyright © David Lastrucci
+  All rights reserved
+
+  Trysil - Operation ORM (World War II)
+  http://codenames.info/operation/orm/
+
+*)
 unit Trysil.Data.Connection;
 
 interface
@@ -10,6 +20,7 @@ uses
   Trysil.Consts,
   Trysil.Types,
   Trysil.Exceptions,
+  Trysil.Logger,
   Trysil.Data,
   Trysil.Metadata,
   Trysil.Mapping,
@@ -30,12 +41,21 @@ type
     function GetColumnMap(
       const ATableMap: TTTableMap; const AColumnName: String): TTColumnMap;
 
-    function SelectCount(
+    function GetDatabaseVersion: String; override;
+
+    function CheckExists(
       const ATableMap: TTTableMap;
       const ATableName: String;
       const AColumnName: String;
-      const AEntity: TObject): Integer; override;
+      const AEntity: TObject): Boolean; override;
   public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure StartTransaction; override;
+    procedure CommitTransaction; override;
+    procedure RollbackTransaction; override;
+
     function CreateReader(
       const AMapper: TTMapper;
       const ATableMap: TTTableMap;
@@ -63,9 +83,6 @@ type
       const ATableMetadata: TTTableMetadata); override;
 
     function GetSequenceID(const ATableMap: TTTableMap): TTPrimaryKey; override;
-  public
-    constructor Create;
-    destructor Destroy; override;
 
     property SyntaxClasses: TTSyntaxClasses read FSyntaxClasses;
   end;
@@ -155,6 +172,27 @@ begin
   inherited Destroy;
 end;
 
+procedure TTGenericConnection.StartTransaction;
+begin
+  if InTransaction then
+    raise ETException.CreateFmt(SInTransaction, ['StartTransaction']);
+  TTLogger.Instance.LogStartTransaction;
+end;
+
+procedure TTGenericConnection.CommitTransaction;
+begin
+  if not InTransaction then
+    raise ETException.CreateFmt(SNotInTransaction, ['CommitTransaction']);
+  TTLogger.Instance.LogCommit;
+end;
+
+procedure TTGenericConnection.RollbackTransaction;
+begin
+  if not InTransaction then
+    raise ETException.CreateFmt(SNotInTransaction, ['RollbackTransaction']);
+  TTLogger.Instance.LogRollback;
+end;
+
 function TTGenericConnection.CreateReader(
   const AMapper: TTMapper;
   const ATableMap: TTTableMap;
@@ -199,7 +237,7 @@ var
 begin
   result := nil;
   for LColumn in ATableMap.Columns do
-    if LColumn.Name.Equals(AColumnName) then
+    if String.Compare(LColumn.Name, AColumnName, True) = 0 then
     begin
       result := LColumn;
       Break;
@@ -207,6 +245,27 @@ begin
 
   if not Assigned(result) then
     raise ETException.CreateFmt(SColumnNotFound, [AColumnName]);
+end;
+
+function TTGenericConnection.GetDatabaseVersion: String;
+var
+  LSyntax: TTVersionSyntax;
+  LDataSet: TDataset;
+begin
+  result := string.Empty;
+  LSyntax := SyntaxClasses.Version.Create;
+  try
+    LDataset := CreateDataSet(LSyntax.SQL);
+    try
+      TTLogger.Instance.LogSyntax(LSyntax.SQL);
+      if not LDataSet.IsEmpty then
+        result := LDataSet.Fields[0].AsString;
+    finally
+      LDataSet.Free;
+    end;
+  finally
+    LSyntax.Free;
+  end;
 end;
 
 procedure TTGenericConnection.GetMetadata(
@@ -246,7 +305,7 @@ begin
   try
     LDataset := CreateDataSet(LSyntax.SQL);
     try
-      LDataset.Open;
+      TTLogger.Instance.LogSyntax(LSyntax.SQL);
       result := LDataset.Fields[0].AsInteger;
     finally
       LDataset.Free;
@@ -256,24 +315,23 @@ begin
   end;
 end;
 
-function TTGenericConnection.SelectCount(
+function TTGenericConnection.CheckExists(
   const ATableMap: TTTableMap;
   const ATableName: String;
   const AColumnName: String;
-  const AEntity: TObject): Integer;
+  const AEntity: TObject): Boolean;
 var
   LID: TTPrimaryKey;
-  LSyntax: TTSelectCountSyntax;
+  LSyntax: TTCheckExistsSyntax;
   LDataset: TDataset;
 begin
   LID := ATableMap.PrimaryKey.Member.GetValue(AEntity).AsType<TTPrimaryKey>();
-  LSyntax := FSyntaxClasses.SelectCount.Create(
+  LSyntax := FSyntaxClasses.CheckExists.Create(
     Self, ATableMap, ATableName, AColumnName, LID);
   try
     LDataset := CreateDataSet(LSyntax.SQL);
     try
-      LDataset.Open;
-      result := LDataset.Fields[0].AsInteger;
+      result := (LDataset.Fields[0].AsInteger > 0);
     finally
       LDataset.Free;
     end;
@@ -306,6 +364,7 @@ end;
 function TTGenericReader.GetDataset: TDataset;
 begin
   result := FConnection.CreateDataset(FSyntax.SQL);
+  TTLogger.Instance.LogSyntax(FSyntax.SQL);
 end;
 
 { TTGenericCommand }
@@ -348,6 +407,8 @@ begin
     FConnection.StartTransaction;
   try
     BeforeExecute(AEntity, AEvent);
+
+    TTLogger.Instance.LogCommand(ASQL);
 
     LRowsAffected := FConnection.Execute(
       ASQL,
