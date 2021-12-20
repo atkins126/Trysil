@@ -18,22 +18,33 @@ uses
 
 type
 
-{ TTFilterTop }
+{$INCLUDE 'Trysil.Conditionals.inc'}
 
-  TTFilterTop = record
+{ TTFilterPaging }
+
+  TTFilterPaging = record
   strict private
-    FMaxRecord: Integer;
+    FStart: Integer;
+    FLimit: Integer;
     FOrderBy: String;
 
     function GetIsEmpty: Boolean;
+    function GetHasPagination: Boolean;
   public
-    constructor Create(const AMaxRecord: Integer; const AOrderBy: String);
+    constructor Create(
+      const AStart: Integer; const ALimit: Integer; const AOrderBy: String);
 
-    property MaxRecord: Integer read FMaxRecord write FMaxRecord;
+{$IFDEF Managed_Records}
+    class operator Initialize(out AFilterPaging: TTFilterPaging);
+{$ENDIF}
+
+    property Start: Integer read FStart write FStart;
+    property Limit: Integer read FLimit write FLimit;
     property OrderBy: String read FOrderBy write FOrderBy;
     property IsEmpty: Boolean read GetIsEmpty;
+    property HasPagination: Boolean read GetHasPagination;
 
-    class function Empty: TTFilterTop; static;
+    class function Empty: TTFilterPaging; static;
   end;
 
 { TTFilter }
@@ -41,18 +52,29 @@ type
   TTFilter = record
   strict private
     FWhere: String;
-    FTop: TTFilterTop;
+    FPaging: TTFilterPaging;
 
     function GetIsEmpty: Boolean;
   public
     constructor Create(const AWhere: String); overload;
+
     constructor Create(
       const AWhere: String;
       const AMaxRecord: Integer;
       const AOrderBy: String); overload;
 
+    constructor Create(
+      const AWhere: String;
+      const AStart: Integer;
+      const ALimit: Integer;
+      const AOrderBy: String); overload;
+
+{$IFDEF Managed_Records}
+    class operator Initialize(out AFilter: TTFilter);
+{$ENDIF}
+
     property Where: String read FWhere write FWhere;
-    property Top: TTFilterTop read FTop write FTop;
+    property Paging: TTFilterPaging read FPaging;
     property IsEmpty: Boolean read GetIsEmpty;
 
     class function Empty: TTFilter; static;
@@ -60,23 +82,40 @@ type
 
 implementation
 
-{ TTFilterTop }
+{ TTFilterPaging }
 
-constructor TTFilterTop.Create(
-  const AMaxRecord: Integer; const AOrderBy: String);
+constructor TTFilterPaging.Create(
+  const AStart: Integer;
+  const ALimit: Integer;
+  const AOrderBy: String);
 begin
-  FMaxRecord := AMaxRecord;
+  FStart := AStart;
+  FLimit := ALimit;
   FOrderBy := AOrderBy;
 end;
 
-class function TTFilterTop.Empty: TTFilterTop;
+{$IFDEF Managed_Records}
+class operator TTFilterPaging.Initialize(out AFilterPaging: TTFilterPaging);
 begin
-  result := TTFilterTop.Create(0, String.Empty);
+  AFilterPaging.FStart := -1;
+  AFilterPaging.FLimit := -1;
+  AFilterPaging.FOrderBy := String.Empty;
+end;
+{$ENDIF}
+
+function TTFilterPaging.GetIsEmpty: Boolean;
+begin
+  result := (FStart < 0) or (FLimit <= 0);
 end;
 
-function TTFilterTop.GetIsEmpty: Boolean;
+function TTFilterPaging.GetHasPagination: Boolean;
 begin
-  result := (FMaxRecord = 0) and (FOrderBy.IsEmpty);
+  result := (FStart >= 0) and (FLimit > 0);
+end;
+
+class function TTFilterPaging.Empty: TTFilterPaging;
+begin
+  result := TTFilterPaging.Create(-1, -1, String.Empty);
 end;
 
 { TTFilter }
@@ -84,7 +123,7 @@ end;
 constructor TTFilter.Create(const AWhere: String);
 begin
   FWhere := AWhere;
-  FTop := TTFilterTop.Empty();
+  FPaging := TTFilterPaging.Empty();
 end;
 
 constructor TTFilter.Create(
@@ -93,8 +132,26 @@ constructor TTFilter.Create(
   const AOrderBy: String);
 begin
   FWhere := AWhere;
-  FTop := TTFilterTop.Create(AMaxRecord, AOrderBy);
+  FPaging := TTFilterPaging.Create(0, AMaxRecord, AOrderBy);
 end;
+
+constructor TTFilter.Create(
+  const AWhere: String;
+  const AStart: Integer;
+  const ALimit: Integer;
+  const AOrderBy: String);
+begin
+  FWhere := AWhere;
+  FPaging := TTFilterPaging.Create(AStart, ALimit, AOrderBy);
+end;
+
+{$IFDEF Managed_Records}
+class operator TTFilter.Initialize(out AFilter: TTFilter);
+begin
+  AFilter.FWhere := String.Empty;
+  AFilter.FPaging := TTFilterPaging.Empty();
+end;
+{$ENDIF}
 
 class function TTFilter.Empty: TTFilter;
 begin
@@ -103,7 +160,7 @@ end;
 
 function TTFilter.GetIsEmpty: Boolean;
 begin
-  result := FWhere.IsEmpty and FTop.IsEmpty;
+  result := FWhere.IsEmpty and FPaging.IsEmpty;
 end;
 
 end.

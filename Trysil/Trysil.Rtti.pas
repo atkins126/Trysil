@@ -43,23 +43,24 @@ type
 
   TTRttiMember = class abstract
   strict protected
+    FName: String;
     FTypeInfo: PTypeInfo;
     FIsClass: Boolean;
     FRttiType: TRttiType;
 
     function InternalCreateObject(
       const AContext: TObject;
-      const AMapper: TObject;
       const AColumnName: String): TTValue;
     procedure SetID(const AObject: TObject; const AID: TTValue);
     function GetIsNullable: Boolean;
   public
+    constructor Create(const AName: String);
+
     function NeedCreateObject(
       const AValue: TTValue; const AIsLazy: Boolean): Boolean;
     function CreateObject(
       const AInstance: TObject;
       const AContext: TObject;
-      const AMapper: TObject;
       const AColumnName: String;
       const AValue: TTValue): TObject;
 
@@ -69,6 +70,7 @@ type
     procedure SetValue(
       const AInstance: TObject; const AValue: TTValue); virtual; abstract;
 
+    property Name: String read FName;
     property IsClass: Boolean read FIsClass;
     property IsNullable: Boolean read GetIsNullable;
   end;
@@ -167,14 +169,7 @@ implementation
 
 function TTValueHelper.GetIsNullable: Boolean;
 begin
-  result :=
-    Self.IsType<TTNullable<String>>() or
-    Self.IsType<TTNullable<Integer>>() or
-    Self.IsType<TTNullable<Int64>>() or
-    Self.IsType<TTNullable<Double>>() or
-    Self.IsType<TTNullable<Boolean>>() or
-    Self.IsType<TTNullable<TDateTime>>() or
-    Self.IsType<TTNullable<TGuid>>();
+  result := String(Self.TypeInfo.Name).StartsWith('TTNullable<');
 end;
 
 function TTValueHelper.NullableValueToString: String;
@@ -199,9 +194,14 @@ end;
 
 { TTRttiMember }
 
+constructor TTRttiMember.Create(const AName: String);
+begin
+  inherited Create;
+  FName := AName;
+end;
+
 function TTRttiMember.InternalCreateObject(
   const AContext: TObject;
-  const AMapper: TObject;
   const AColumnName: String): TTValue;
 var
   LMethod: TRttiMethod;
@@ -213,19 +213,17 @@ begin
     if LMethod.IsConstructor then
     begin
       LParameters := LMethod.GetParameters;
-      LIsValid := Length(LParameters) = 3;
+      LIsValid := Length(LParameters) = 2;
       if LIsValid then
         LIsValid :=
           (LParameters[0].ParamType.Handle = AContext.ClassInfo) and
-          (LParameters[1].ParamType.Handle = AMapper.ClassInfo) and
-          (LParameters[2].ParamType.Handle = TypeInfo(String));
+          (LParameters[1].ParamType.Handle = TypeInfo(String));
 
       if LIsValid then
       begin
-        SetLength(LParams, 3);
+        SetLength(LParams, 2);
         LParams[0] := TTValue.From<TObject>(AContext);
-        LParams[1] := TTValue.From<TObject>(AMapper);
-        LParams[2] := TTValue.From<String>(AColumnName);
+        LParams[1] := TTValue.From<String>(AColumnName);
         result := LMethod.Invoke(FRttiType.AsInstance.MetaclassType, LParams);
         Break;
       end;
@@ -260,7 +258,6 @@ end;
 function TTRttiMember.CreateObject(
   const AInstance: TObject;
   const AContext: TObject;
-  const AMapper: TObject;
   const AColumnName: String;
   const AValue: TTValue): TObject;
 var
@@ -272,7 +269,7 @@ begin
   LValue := GetValue(AInstance);
   if NeedCreateObject(LValue, LIsLazy) then
   begin
-    LValue := InternalCreateObject(AContext, AMapper, AColumnName);
+    LValue := InternalCreateObject(AContext, AColumnName);
     SetValue(AInstance, LValue);
     if LValue.IsType<TObject>() then
     begin
@@ -297,21 +294,14 @@ end;
 
 function TTRttiMember.GetIsNullable: Boolean;
 begin
-  result :=
-    (FTypeInfo = TypeInfo(TTNullable<String>)) or
-    (FTypeInfo = TypeInfo(TTNullable<Integer>)) or
-    (FTypeInfo = TypeInfo(TTNullable<Int64>)) or
-    (FTypeInfo = TypeInfo(TTNullable<Double>)) or
-    (FTypeInfo = TypeInfo(TTNullable<Boolean>)) or
-    (FTypeInfo = TypeInfo(TTNullable<TDateTime>)) or
-    (FTypeInfo = TypeInfo(TTNullable<TGuid>));
+  result := String(FTypeInfo.Name).StartsWith('TTNullable<');
 end;
 
 { TTRttiField }
 
 constructor TTRttiField.Create(const ARttiField: TRttiField);
 begin
-  inherited Create;
+  inherited Create(ARttiField.Name);
   FTypeInfo := ARttiField.FieldType.Handle;
   FRttiField := ARttiField;
   FIsClass := (FRttiField.FieldType.TypeKind = TTypeKind.tkClass);
@@ -333,7 +323,7 @@ end;
 
 constructor TTRttiProperty.Create(const ARttiProperty: TRttiProperty);
 begin
-  inherited Create;
+  inherited Create(ARttiProperty.Name);
   FTypeInfo := ARttiProperty.PropertyType.Handle;
   FRttiProperty := ARttiProperty;
   FIsClass := (FRttiProperty.PropertyType.TypeKind = TTypeKind.tkClass);

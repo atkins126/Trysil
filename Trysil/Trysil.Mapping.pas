@@ -55,6 +55,8 @@ type
   TTColumnsMap = class
   strict private
     FColumns: TTObjectList<TTColumnMap>;
+
+    function GetEmpty: Boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -62,6 +64,8 @@ type
     procedure Add(const AColumn: TTColumnMap);
 
     function GetEnumerator(): TTListEnumerator<TTColumnMap>;
+
+    property Empty: Boolean read GetEmpty;
   end;
 
 { TTDetailColumnMap }
@@ -208,7 +212,12 @@ type
 
 { TTMapper }
 
-  TTMapper = class(TTCacheEx<PTypeInfo, TTTableMap>)
+  TTMapper = class(TTCache<PTypeInfo, TTTableMap>)
+  strict private
+    class var FInstance: TTMapper;
+
+    class constructor ClassCreate;
+    class destructor ClassDestroy;
   strict private
     FContext: TRttiContext;
   strict protected
@@ -219,6 +228,8 @@ type
 
     function Load<T: class>(): TTTableMap; overload;
     function Load(const ATypeInfo: PTypeInfo): TTTableMap; overload;
+
+    class property Instance: TTMapper read FInstance;
   end;
 
 implementation
@@ -268,6 +279,11 @@ end;
 procedure TTColumnsMap.Add(const AColumn: TTColumnMap);
 begin
   FColumns.Add(AColumn);
+end;
+
+function TTColumnsMap.GetEmpty: Boolean;
+begin
+  result := (FColumns.Count = 0);
 end;
 
 function TTColumnsMap.GetEnumerator: TTListEnumerator<TTColumnMap>;
@@ -581,6 +597,16 @@ begin
 end;
 
 { TTMapper }
+
+class constructor TTMapper.ClassCreate;
+begin
+  FInstance := TTMapper.Create;
+end;
+
+class destructor TTMapper.ClassDestroy;
+begin
+  FInstance.Free;
+end;
 
 constructor TTMapper.Create;
 begin

@@ -22,6 +22,8 @@ uses
 
 type
 
+{$INCLUDE 'Trysil.Conditionals.inc'}
+
 { TTPrimaryKey }
 
   TTPrimaryKey = Int32;
@@ -41,15 +43,15 @@ type
 
 { TTNullable<T> }
 
-{$IF CompilerVersion >= 34} // Delphi 10.4 Sydney
-  {$DEFINE Managed_Records}
-{$ENDIF}
-
   TTNullable<T> = record
 {$IFDEF Managed_Records}
+  strict private
+    const NotNullValue: Boolean = False;
+    const NullValue: Boolean = True;
 {$ELSE}
   strict private
-    const NotNullValue = '@@@';
+    const NotNullValue: String = '@@@';
+    const NullValue: String = String.Empty;
 {$ENDIF}
   strict private
     FValue: T;
@@ -105,11 +107,7 @@ end;
 
 constructor TTNullable<T>.Create(const AValue: T);
 begin
-{$IFDEF Managed_Records}
-  FIsNull := False;
-{$ELSE}
   FIsNull := NotNullValue;
-{$ENDIF}
   FValue := AValue;
 end;
 
@@ -123,11 +121,7 @@ end;
 
 procedure TTNullable<T>.Clear;
 begin
-{$IFDEF Managed_Records}
-  FIsNull := True;
-{$ELSE}
-  FIsNull := String.Empty;
-{$ENDIF}
+  FIsNull := NullValue;
   FValue := Default(T);
 end;
 
@@ -165,7 +159,7 @@ end;
 {$IFDEF Managed_Records}
 class operator TTNullable<T>.Initialize(out ANullable: TTNullable<T>);
 begin
-  ANullable.FIsNull := True;
+  ANullable.FIsNull := NullValue;
   ANullable.FValue := default(T);
 end;
 {$ENDIF}
@@ -207,11 +201,7 @@ end;
 
 function TTNullable<T>.GetIsNull: Boolean;
 begin
-{$IFDEF Managed_Records}
-  result := FIsNull;
-{$ELSE}
-  result := FIsNull.IsEmpty;
-{$ENDIF}
+  result := (FIsNull = NullValue);
 end;
 
 end.

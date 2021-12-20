@@ -78,7 +78,6 @@ type
   TTAbstractSyntax = class abstract
   strict protected
     FConnection: TTConnection;
-    FMapper: TTMapper;
     FTableMap: TTTableMap;
     FTableMetadata: TTTableMetadata;
 
@@ -87,7 +86,6 @@ type
   public
     constructor Create(
       const AConnection: TTConnection;
-      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
   end;
@@ -102,14 +100,14 @@ type
 
     function GetColumns: String; virtual;
     function GetOrderBy: String; virtual;
+
     function InternalGetSqlSyntax(
       const AWhereColumns: TArray<TTColumnMap>): String; override;
 
-    function GetFilterTopSyntax: String; virtual; abstract;
+    function GetFilterPagingSyntax: String; virtual; abstract;
   public
     constructor Create(
       const AConnection: TTConnection;
-      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata;
       const AFilter: TTFilter);
@@ -123,11 +121,10 @@ type
 
   TTMetadataSyntax = class(TTSelectSyntax)
   strict protected
-    function GetFilterTopSyntax: String; override;
+    function GetFilterPagingSyntax: String; override;
   public
     constructor Create(
       const AConnection: TTConnection;
-      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
   end;
@@ -140,7 +137,6 @@ type
   public
     constructor Create(
       const AConnection: TTConnection;
-      const AMapper: TTMapper;
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata);
 
@@ -262,13 +258,11 @@ end;
 
 constructor TTAbstractSyntax.Create(
   const AConnection: TTConnection;
-  const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
 begin
   inherited Create;
   FConnection := AConnection;
-  FMapper := AMapper;
   FTableMap := ATableMap;
   FTableMetadata := ATableMetadata;
 end;
@@ -277,12 +271,11 @@ end;
 
 constructor TTSelectSyntax.Create(
   const AConnection: TTConnection;
-  const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata;
   const AFilter: TTFilter);
 begin
-  inherited Create(AConnection, AMapper, ATableMap, ATableMetadata);
+  inherited Create(AConnection, ATableMap, ATableMetadata);
   FFilter := AFilter;
 end;
 
@@ -312,8 +305,8 @@ begin
   LResult := TStringBuilder.Create;
   try
     LResult.Append(' ORDER BY ');
-    if (not FFilter.Top.OrderBy.IsEmpty) then
-      LResult.Append(FFilter.Top.OrderBy)
+    if not FFilter.Paging.OrderBy.IsEmpty then
+      LResult.Append(FFilter.Paging.OrderBy)
     else if Assigned(FTableMap.PrimaryKey) then
       LResult.Append(
         FConnection.GetDatabaseObjectName(FTableMap.PrimaryKey.Name));
@@ -332,14 +325,14 @@ begin
   LResult := TStringBuilder.Create;
   try
     LResult.Append('SELECT ');
-    if FFilter.Top.MaxRecord > 0 then
-      LResult.AppendFormat('%s ', [GetFilterTopSyntax]);
     LResult.Append(GetColumns());
     LResult.AppendFormat(' FROM %s', [
       FConnection.GetDatabaseObjectName(FTableMap.Name)]);
     if not FFilter.Where.IsEmpty then
       LResult.AppendFormat(' WHERE %s', [FFilter.Where]);
     LResult.Append(GetOrderBy());
+    if not FFilter.Paging.IsEmpty then
+      LResult.AppendFormat(' %s', [GetFilterPagingSyntax()]);
 
     result := LResult.ToString();
   finally
@@ -356,15 +349,14 @@ end;
 
 constructor TTMetadataSyntax.Create(
   const AConnection: TTConnection;
-  const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
 begin
   inherited Create(
-    AConnection, AMapper, ATableMap, ATableMetadata, TTFilter.Create('0 = 1'));
+    AConnection, ATableMap, ATableMetadata, TTFilter.Create('0 = 1'));
 end;
 
-function TTMetadataSyntax.GetFilterTopSyntax: String;
+function TTMetadataSyntax.GetFilterPagingSyntax: string;
 begin
   result := String.Empty;
 end;
@@ -373,11 +365,10 @@ end;
 
 constructor TTCommandSyntax.Create(
   const AConnection: TTConnection;
-  const AMapper: TTMapper;
   const ATableMap: TTTableMap;
   const ATableMetadata: TTTableMetadata);
 begin
-  inherited Create(AConnection, AMapper, ATableMap, ATableMetadata);
+  inherited Create(AConnection, ATableMap, ATableMetadata);
 end;
 
 function TTCommandSyntax.GetSqlSyntax(
@@ -546,7 +537,7 @@ end;
 
 constructor TTDeleteCascadeSyntax.Create;
 begin
-  inherited Create(nil, nil, nil, nil);
+  inherited Create(nil, nil, nil);
 end;
 
 function TTDeleteCascadeSyntax.GetSqlSyntax: String;

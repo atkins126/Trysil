@@ -35,7 +35,6 @@ type
   strict private
     FConnection: TTConnection;
 
-    FMapper: TTMapper;
     FMetadata: TTMetadata;
     FProvider: TTProvider;
     FResolver: TTResolver;
@@ -52,7 +51,8 @@ type
     procedure CommitTransaction;
     procedure RollbackTransaction;
 
-    function CreateEntity<T: class>(): T;
+    function CreateEntity<T: class>(): T; overload;
+    function CreateEntity<T: class>(const AUseSequenceID: Boolean): T; overload;
     function CloneEntity<T: class>(const AEntity: T): T;
     function CreateSession<T: class>(
       const AList: TList<T>): TTSession<T>;
@@ -68,8 +68,13 @@ type
     procedure Refresh<T: class>(const AEntity: T);
 
     procedure Insert<T: class>(const AEntity: T);
+    procedure InsertAll<T: class>(const AList: TTList<T>);
+
     procedure Update<T: class>(const AEntity: T);
+    procedure UpdateAll<T: class>(const AList: TTList<T>);
+
     procedure Delete<T: class>(const AEntity: T);
+    procedure DeleteAll<T: class>(const AList: TTList<T>);
 
     property InTransaction: Boolean read GetInTransaction;
   end;
@@ -89,12 +94,11 @@ begin
   inherited Create;
   FConnection := AConnection;
 
-  FMapper := TTMapper.Create;
-  FMetadata := TTMetadata.Create(FMapper, FConnection);
+  FMetadata := TTMetadata.Create(FConnection);
 
   FProvider := TTProvider.Create(
-    FConnection, Self, FMetadata, FMapper, AUseIdentityMap);
-  FResolver := TTResolver.Create(FConnection, Self, FMetadata, FMapper);
+    FConnection, Self, FMetadata, AUseIdentityMap);
+  FResolver := TTResolver.Create(FConnection, Self, FMetadata);
 end;
 
 destructor TTContext.Destroy;
@@ -102,7 +106,6 @@ begin
   FResolver.Free;
   FProvider.Free;
   FMetadata.Free;
-  FMapper.Free;
   inherited Destroy;
 end;
 
@@ -128,7 +131,12 @@ end;
 
 function TTContext.CreateEntity<T>(): T;
 begin
-  result := FProvider.CreateEntity<T>();
+  result := CreateEntity<T>(True);
+end;
+
+function TTContext.CreateEntity<T>(const AUseSequenceID: Boolean): T;
+begin
+  result := FProvider.CreateEntity<T>(AUseSequenceID);
 end;
 
 function TTContext.CloneEntity<T>(const AEntity: T): T;
@@ -172,14 +180,38 @@ begin
   FResolver.Insert<T>(AEntity);
 end;
 
+procedure TTContext.InsertAll<T>(const AList: TTList<T>);
+var
+  LEntity: T;
+begin
+  for LEntity in AList do
+    FResolver.Insert<T>(LEntity);
+end;
+
 procedure TTContext.Update<T>(const AEntity: T);
 begin
   FResolver.Update<T>(AEntity);
 end;
 
+procedure TTContext.UpdateAll<T>(const AList: TTList<T>);
+var
+  LEntity: T;
+begin
+  for LEntity in AList do
+    FResolver.Update<T>(LEntity);
+end;
+
 procedure TTContext.Delete<T>(const AEntity: T);
 begin
   FResolver.Delete<T>(AEntity);
+end;
+
+procedure TTContext.DeleteAll<T>(const AList: TTList<T>);
+var
+  LEntity: T;
+begin
+  for LEntity in AList do
+    FResolver.Delete<T>(LEntity);
 end;
 
 end.
