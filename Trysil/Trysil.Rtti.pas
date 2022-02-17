@@ -48,10 +48,12 @@ type
     FIsClass: Boolean;
     FRttiType: TRttiType;
 
+    function InheritsFrom(const AObject: TObject; AType: TRttiType): Boolean;
     function InternalCreateObject(
       const AContext: TObject;
       const AColumnName: String): TTValue;
     procedure SetID(const AObject: TObject; const AID: TTValue);
+
     function GetIsNullable: Boolean;
   public
     constructor Create(const AName: String);
@@ -71,6 +73,7 @@ type
       const AInstance: TObject; const AValue: TTValue); virtual; abstract;
 
     property Name: String read FName;
+    property RttiType: TRttiType read FRttiType;
     property IsClass: Boolean read FIsClass;
     property IsNullable: Boolean read GetIsNullable;
   end;
@@ -105,8 +108,30 @@ type
 
   TTRttiLazy = class
   strict private
+    FObject: TObject;
+    FContext: TRttiContext;
+
+    FType: TRttiType;
+    FID: TRttiField;
+    FProperty: TRttiProperty;
+
+    procedure SearchType;
+    procedure SearchProperty;
+    procedure SearchID;
+
+    function GetObjectValue: TObject;
+    function GetID: TTPrimaryKey;
+  strict private
     class function CheckTypeName(const AType: TRttiType): Boolean;
   public
+    constructor Create(const AObject: TObject);
+    destructor Destroy; override;
+
+    procedure AfterConstruction; override;
+
+    property ObjectValue: TObject read GetObjectValue;
+    property ID: TTPrimaryKey read GetID;
+
     class function IsLazy(const AObject: TObject): Boolean;
     class function IsLazyType(const AType: TRttiType): Boolean;
   end;
@@ -189,7 +214,7 @@ begin
   else if Self.IsType<TTNullable<TGuid>>() then
     result := Self.AsType<TTNullable<TGuid>>().GetValueOrDefault().ToString()
   else
-    result := String.Empty;
+    raise ETException.Create(SInvalidNullableType);
 end;
 
 { TTRttiMember }
@@ -200,6 +225,22 @@ begin
   FName := AName;
 end;
 
+function TTRttiMember.InheritsFrom(
+  const AObject: TObject; AType: TRttiType): Boolean;
+var
+  LClass: TClass;
+begin
+  LClass := AObject.ClassType;
+  result := LClass.ClassInfo = AType.Handle;
+  while not result do
+  begin
+    LClass := LClass.ClassParent;
+    if not Assigned(LClass) then
+      Break;
+    result := LClass.ClassInfo = AType.Handle;
+  end;
+end;
+
 function TTRttiMember.InternalCreateObject(
   const AContext: TObject;
   const AColumnName: String): TTValue;
@@ -207,7 +248,7 @@ var
   LMethod: TRttiMethod;
   LParameters: TArray<TRttiParameter>;
   LIsValid: Boolean;
-  LParams: TArray<TValue>;
+  LParams: TArray<TTValue>;
 begin
   for LMethod in FRttiType.GetMethods do
     if LMethod.IsConstructor then
@@ -216,7 +257,7 @@ begin
       LIsValid := Length(LParameters) = 2;
       if LIsValid then
         LIsValid :=
-          (LParameters[0].ParamType.Handle = AContext.ClassInfo) and
+          InheritsFrom(AContext, LParameters[0].ParamType) and
           (LParameters[1].ParamType.Handle = TypeInfo(String));
 
       if LIsValid then
@@ -304,9 +345,8 @@ begin
   inherited Create(ARttiField.Name);
   FTypeInfo := ARttiField.FieldType.Handle;
   FRttiField := ARttiField;
-  FIsClass := (FRttiField.FieldType.TypeKind = TTypeKind.tkClass);
-  if FIsClass then
-    FRttiType := FRttiField.FieldType;
+  FRttiType := FRttiField.FieldType;
+  FIsClass := (FRttiType.TypeKind = TTypeKind.tkClass);
 end;
 
 function TTRttiField.GetValue(const AInstance: TObject): TTValue;
@@ -326,9 +366,8 @@ begin
   inherited Create(ARttiProperty.Name);
   FTypeInfo := ARttiProperty.PropertyType.Handle;
   FRttiProperty := ARttiProperty;
-  FIsClass := (FRttiProperty.PropertyType.TypeKind = TTypeKind.tkClass);
-  if FIsClass then
-    FRttiType := FRttiProperty.PropertyType;
+  FRttiType := FRttiProperty.PropertyType;
+  FIsClass := (FRttiType.TypeKind = TTypeKind.tkClass);
 end;
 
 function TTRttiProperty.GetValue(const AInstance: TObject): TTValue;
@@ -343,6 +382,92 @@ begin
 end;
 
 { TTRttiLazy }
+
+constructor TTRttiLazy.Create(const AObject: TObject);
+begin
+  inherited Create;
+  FObject := AObject;
+  FContext := TRttiContext.Create;
+
+  FType := nil;
+  FProperty := nil;
+  FID := nil;
+end;
+
+destructor TTRttiLazy.Destroy;
+begin
+  FContext.Free;
+  inherited Destroy;
+end;
+
+procedure TTRttiLazy.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  if Assigned(FObject) then
+  begin
+    SearchType;
+    if Assigned(FType) then
+    begin
+      SearchProperty;
+      SearchID;
+    end;
+  end;
+end;
+
+procedure TTRttiLazy.SearchType;
+var
+  LType: TRttiType;
+begin
+  LType := FContext.GetType(FObject.ClassInfo);
+  while not CheckTypeName(LType) do
+  begin
+    LType := LType.BaseType;
+    if not Assigned(LType) then
+      Break;
+  end;
+
+  if Assigned(LType) then
+    FType := LType;
+end;
+
+procedure TTRttiLazy.SearchProperty;
+begin
+  if FType.Name.StartsWith('TTLazy<') then
+    FProperty := FType.GetProperty('Entity')
+  else if FType.Name.StartsWith('TTLazyList<') then
+    FProperty := FType.GetProperty('List');
+end;
+
+procedure TTRttiLazy.SearchID;
+begin
+  FID := FType.GetField('FID');
+end;
+
+function TTRttiLazy.GetObjectValue: TObject;
+var
+  LValue: TTValue;
+begin
+  result := nil;
+  if Assigned(FObject) and Assigned(FProperty) then
+  begin
+    LValue := FProperty.GetValue(FObject);
+    if LValue.IsObject then
+      result := LValue.AsObject;
+  end;
+end;
+
+function TTRttiLazy.GetID: TTPrimaryKey;
+var
+  LValue: TTValue;
+begin
+  result := 0;
+  if Assigned(FObject) and Assigned(FID) then
+  begin
+    LValue := FID.GetValue(FObject);
+    if LValue.IsType<TTPrimaryKey>() then
+      result := LValue.AsType<TTPrimaryKey>();
+  end;
+end;
 
 class function TTRttiLazy.IsLazy(const AObject: TObject): Boolean;
 var
