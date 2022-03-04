@@ -27,6 +27,7 @@ uses
   Trysil.Events.Attributes,
   Trysil.Cache,
   Trysil.Generics.Collections,
+  Trysil.Factory,
   Trysil.Rtti;
 
 type
@@ -484,7 +485,7 @@ procedure TTTableMap.InitializeTable(const AType: TRttiType);
 var
   LAttribute: TCustomAttribute;
 begin
-  for LAttribute in AType.GetAttributes do
+  for LAttribute in AType.GetInheritedAttributes do
     if LAttribute is TTableAttribute then
       SetTableName(TTableAttribute(LAttribute).Name)
     else if LAttribute is TSequenceAttribute then
@@ -627,7 +628,7 @@ end;
 
 function TTMapper.Load<T>: TTTableMap;
 begin
-  result := Load(TypeInfo(T));
+  result := Load(TTFactory.Instance.GetType<T>());
 end;
 
 function TTMapper.Load(const ATypeInfo: PTypeInfo): TTTableMap;

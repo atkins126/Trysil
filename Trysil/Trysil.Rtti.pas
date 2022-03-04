@@ -15,12 +15,14 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  System.Generics.Collections,
   System.TypInfo,
   System.Rtti,
 
   Trysil.Consts,
   Trysil.Types,
-  Trysil.Exceptions;
+  Trysil.Exceptions,
+  Trysil.Factory;
 
 type
 
@@ -37,6 +39,29 @@ type
     function NullableValueToString: String;
 
     property IsNullable: Boolean read GetIsNullable;
+  end;
+
+{$IF CompilerVersion < 35} // Delphi 11.0 Alexandria
+
+{ TTRttiObjectHelper }
+
+  TTRttiObjectHelper = class helper for TRttiObject
+  public
+    function GetAttribute<T: TCustomAttribute>(): T;
+  end;
+
+{$ENDIF}
+
+{ TTRttiTypeHelper }
+
+  TTRttiTypeHelper = class helper for TRttiType
+  strict private
+    function SearchAttribute<T: TCustomAttribute>(const AType: TRttiType): T;
+    procedure SearchAttributes(
+      const AType: TRttiType; const AList: TList<TCustomAttribute>);
+  public
+    function GetInheritedAttribute<T: TCustomAttribute>(): T;
+    function GetInheritedAttributes: TArray<TCustomAttribute>;
   end;
 
 { TTRttiMember }
@@ -107,7 +132,7 @@ type
 { TTRttiLazy }
 
   TTRttiLazy = class
-  strict private
+  strict protected
     FObject: TObject;
     FContext: TRttiContext;
 
@@ -121,6 +146,7 @@ type
 
     function GetObjectValue: TObject;
     function GetID: TTPrimaryKey;
+    procedure SetID(const AValue: TTPrimaryKey);
   strict private
     class function CheckTypeName(const AType: TRttiType): Boolean;
   public
@@ -130,7 +156,7 @@ type
     procedure AfterConstruction; override;
 
     property ObjectValue: TObject read GetObjectValue;
-    property ID: TTPrimaryKey read GetID;
+    property ID: TTPrimaryKey read GetID write SetID;
 
     class function IsLazy(const AObject: TObject): Boolean;
     class function IsLazyType(const AType: TRttiType): Boolean;
@@ -215,6 +241,72 @@ begin
     result := Self.AsType<TTNullable<TGuid>>().GetValueOrDefault().ToString()
   else
     raise ETException.Create(SInvalidNullableType);
+end;
+
+{$IF CompilerVersion < 35} // Delphi 11.0 Alexandria
+
+{ TTRttiObjectHelper }
+
+function TTRttiObjectHelper.GetAttribute<T>(): T;
+var
+  LAttribute: TCustomAttribute;
+begin
+  result := nil;
+  for LAttribute in Self.GetAttributes do
+    if LAttribute is T then
+    begin
+      result := T(LAttribute);
+      Break;
+    end;
+end;
+
+{$ENDIF}
+
+{ TTRttiTypeHelper }
+
+function TTRttiTypeHelper.SearchAttribute<T>(const AType: TRttiType): T;
+var
+  LParent: TRttiType;
+begin
+  result := AType.GetAttribute<T>();
+  if not Assigned(result) then
+  begin
+    LParent := AType.BaseType;
+    if Assigned(LParent) then
+      result := SearchAttribute<T>(LParent);
+  end;
+end;
+
+function TTRttiTypeHelper.GetInheritedAttribute<T>(): T;
+begin
+  result := SearchAttribute<T>(Self);
+end;
+
+procedure TTRttiTypeHelper.SearchAttributes(
+  const AType: TRttiType; const AList: TList<TCustomAttribute>);
+var
+  LParent: TRttiType;
+  LAttribute: TCustomAttribute;
+begin
+  LParent := AType.BaseType;
+  if Assigned(LParent) then
+    SearchAttributes(LParent, AList);
+
+  for LAttribute in AType.GetAttributes do
+    AList.Add(LAttribute);
+end;
+
+function TTRttiTypeHelper.GetInheritedAttributes: TArray<TCustomAttribute>;
+var
+  LResult: TList<TCustomAttribute>;
+begin
+  LResult := TList<TCustomAttribute>.Create;
+  try
+    SearchAttributes(Self, LResult);
+    result := LResult.ToArray;
+  finally
+    LResult.Free;
+  end;
 end;
 
 { TTRttiMember }
@@ -469,6 +561,12 @@ begin
   end;
 end;
 
+procedure TTRttiLazy.SetID(const AValue: TTPrimaryKey);
+begin
+  if Assigned(FObject) and Assigned(FID) then
+    FID.SetValue(FObject, AValue);
+end;
+
 class function TTRttiLazy.IsLazy(const AObject: TObject): Boolean;
 var
   LContext: TRttiContext;
@@ -635,7 +733,7 @@ constructor TTRttiEntity<T>.Create;
 begin
   inherited Create;
   FContext := TRttiContext.Create;
-  FType := FContext.GetType(TypeInfo(T));
+  FType := FContext.GetType(TTFactory.Instance.GetType<T>());
 end;
 
 destructor TTRttiEntity<T>.Destroy;
