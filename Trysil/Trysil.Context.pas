@@ -35,13 +35,13 @@ type
   strict private
     FConnection: TTConnection;
 
+    function GetInTransaction: Boolean;
+    function GetUseIdentityMap: Boolean;
+  strict protected
     FMetadata: TTMetadata;
     FProvider: TTProvider;
     FResolver: TTResolver;
 
-    function GetInTransaction: Boolean;
-    function GetUseIdentityMap: Boolean;
-  strict protected
     function InLoading: Boolean; virtual;
   public
     constructor Create(const AConnection: TTConnection); overload; virtual;
@@ -55,14 +55,13 @@ type
     procedure RollbackTransaction;
 
     function CreateEntity<T: class>(): T; overload;
-    procedure SetSequenceID<T: class>(const AEntity: T);
     function CloneEntity<T: class>(const AEntity: T): T;
     function CreateSession<T: class>(
       const AList: TList<T>): TTSession<T>;
 
     function GetMetadata<T: class>(): TTTableMetadata;
 
-    function SelectCount<T: class>(): Integer;
+    function SelectCount<T: class>(const AFilter: TTFilter): Integer;
     procedure SelectAll<T: class>(const AResult: TTList<T>);
     procedure Select<T: class>(
       const AResult: TTList<T>; const AFilter: TTFilter);
@@ -149,11 +148,6 @@ begin
   result := FProvider.CreateEntity<T>(InLoading);
 end;
 
-procedure TTContext.SetSequenceID<T>(const AEntity: T);
-begin
-  FProvider.SetSequenceID<T>(AEntity);
-end;
-
 function TTContext.CloneEntity<T>(const AEntity: T): T;
 begin
   result := FProvider.CloneEntity<T>(AEntity);
@@ -164,14 +158,14 @@ begin
   result := TTSession<T>.Create(FConnection, FProvider, FResolver, AList);
 end;
 
-function TTContext.GetMetadata<T>: TTTableMetadata;
+function TTContext.GetMetadata<T>(): TTTableMetadata;
 begin
   result := FProvider.GetMetadata<T>();
 end;
 
-function TTContext.SelectCount<T>: Integer;
+function TTContext.SelectCount<T>(const AFilter: TTFilter): Integer;
 begin
-  result := FProvider.SelectCount<T>();
+  result := FProvider.SelectCount<T>(AFilter);
 end;
 
 procedure TTContext.SelectAll<T>(const AResult: TTList<T>);

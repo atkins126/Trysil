@@ -100,12 +100,13 @@ type
     destructor Destroy; override;
 
     function CreateEntity<T: class>(const AInLoading: Boolean): T;
+    function GetID<T: class>(const AEntity: T): TTPrimaryKey;
     procedure SetSequenceID<T: class>(const AEntity: T);
     function CloneEntity<T: class>(const AEntity: T): T;
 
     function GetMetadata<T: class>(): TTTableMetadata;
 
-    function SelectCount<T: class>(): Integer;
+    function SelectCount<T: class>(const AFilter: TTFilter): Integer;
 
     procedure Select<T: class>(
       const AResult: TTList<T>; const AFilter: TTFilter);
@@ -159,6 +160,15 @@ function TTProvider.SetPrimaryKey<T>(
 begin
   result := FConnection.GetSequenceID(ATableMap);
   ATableMap.PrimaryKey.Member.SetValue(AEntity, result);
+end;
+
+function TTProvider.GetID<T>(const AEntity: T): TTPrimaryKey;
+var
+  LTableMap: TTTableMap;
+begin
+  LTableMap := TTMapper.Instance.Load<T>();
+  result :=
+    LTableMap.PrimaryKey.Member.GetValue(AEntity).AsType<TTPrimaryKey>();
 end;
 
 procedure TTProvider.SetSequenceID<T>(const AEntity: T);
@@ -457,12 +467,12 @@ begin
   result := GetWhere(ATablemap.PrimaryKey.Name, AID);
 end;
 
-function TTProvider.SelectCount<T>: Integer;
+function TTProvider.SelectCount<T>(const AFilter: TTFilter): Integer;
 var
   LTableMap: TTTableMap;
 begin
   LTableMap := TTMapper.Instance.Load<T>();
-  result := FConnection.SelectCount(LTableMap);
+  result := FConnection.SelectCount(LTableMap, AFilter);
 end;
 
 procedure TTProvider.Select<T>(

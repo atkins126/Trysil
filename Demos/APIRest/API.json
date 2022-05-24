@@ -1,0 +1,17 @@
+{
+  "server": {
+    "baseUri": "",
+    "port": 4450
+  },
+  "cors": {
+    "allowHeaders": "Content-Type, Authorization",
+    "allowOrigin": "*"
+  },
+  "database": {
+    "connectionName": "",
+    "server": "",
+    "username": "",
+    "password": "",
+    "databaseName": ""
+  }
+}
