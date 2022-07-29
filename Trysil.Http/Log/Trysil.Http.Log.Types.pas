@@ -25,6 +25,8 @@ uses
 
 type
 
+{$SCOPEDENUMS ON}
+
 { TTHttpLogAction }
 
   TTHttpLogAction = record
@@ -151,7 +153,7 @@ type
 
 { TTHttpLogQueueType }
 
-  TTHttpLogQueueType = (qtRequest, qtResponse);
+  TTHttpLogQueueType = (Request, Response);
 
 { TTHttpLogQueueValue }
 
@@ -392,13 +394,13 @@ end;
 
 constructor TTHttpLogQueueValue.Create(const ARequest: TTHttpLogRequest);
 begin
-  FQueueType := TTHttpLogQueueType.qtRequest;
+  FQueueType := TTHttpLogQueueType.Request;
   FRequest := ARequest;
 end;
 
 constructor TTHttpLogQueueValue.Create(const AResponse: TTHttpLogResponse);
 begin
-  FQueueType := TTHttpLogQueueType.qtResponse;
+  FQueueType := TTHttpLogQueueType.Response;
   FResponse := AResponse;
 end;
 
