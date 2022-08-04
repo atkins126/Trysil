@@ -23,21 +23,11 @@ type
   ETException = class(Exception)
   strict private
     FNestedException: Exception;
+
+    function GetNestedException: Exception;
   public
-    constructor CreateFmt(
-      const AMessage: String;
-      const AArgs: array of const); overload;
-
-    constructor CreateFmt(
-      const AMessage: String;
-      const AArgs: array of const;
-      const ANestedException: Exception); overload;
-
-    constructor Create(const AMessage: String); overload;
-
-    constructor Create(
-      const AMessage: String;
-      const ANestedException: Exception); overload;
+    constructor CreateFmt(const AMessage: String;const AArgs: array of const);
+    constructor Create(const AMessage: String);
 
     destructor Destroy; override;
 
@@ -51,28 +41,13 @@ implementation
 constructor ETException.CreateFmt(
   const AMessage: String; const AArgs: array of const);
 begin
-  CreateFmt(AMessage, AArgs, nil);
-end;
-
-constructor ETException.CreateFmt(
-  const AMessage: String;
-  const AArgs: array of const;
-  const ANestedException: Exception);
-begin
-  Create(Format(AMessage, AArgs), ANestedException);
+  Create(Format(AMessage, AArgs));
 end;
 
 constructor ETException.Create(const AMessage: String);
 begin
-  Create(AMessage, nil);
-end;
-
-constructor ETException.Create(
-  const AMessage: String; const ANestedException: Exception);
-begin
   inherited Create(AMessage);
-  if Assigned(ANestedException) then
-    FNestedException := Exception(AcquireExceptionObject);
+  FNestedException := GetNestedException();
 end;
 
 destructor ETException.Destroy;
@@ -80,6 +55,16 @@ begin
   if Assigned(FNestedException) then
     FNestedException.Free;
   inherited Destroy;
+end;
+
+function ETException.GetNestedException: Exception;
+var
+  LResult: TObject;
+begin
+  result := nil;
+  LResult := AcquireExceptionObject();
+  if Assigned(LResult) and (LResult is Exception) then
+    result := Exception(LResult);
 end;
 
 end.
