@@ -18,9 +18,10 @@ uses
   System.JSon,
   System.Generics.Collections,
   Trysil.Types,
-  Trysil.Mapping,
   Trysil.Consts,
   Trysil.Exceptions,
+  Trysil.Mapping,
+  Trysil.Metadata,
   Trysil.Data,
   Trysil.Context,
 
@@ -64,6 +65,8 @@ type
       const AJSon: String; const AList: TList<T>);
     procedure ListFromJSonArray<T: class>(
       const AJSon: TJSonArray; const AList: TList<T>);
+
+    function MetadataToJSon<T: class>(): String;
   end;
 
 implementation
@@ -230,6 +233,16 @@ begin
   finally
     FInLoading := False;
   end;
+end;
+
+function TTJSonContext.MetadataToJSon<T>(): String;
+var
+  LTableMetadata: TTTableMetadata;
+  LTableMap: TTTableMap;
+begin
+  LTableMetadata := GetMetadata<T>();
+  LTableMap := TTMapper.Instance.Load<T>();
+  result := FSerializer.MetadataToJSon(LTableMetadata, LTableMap);
 end;
 
 end.
