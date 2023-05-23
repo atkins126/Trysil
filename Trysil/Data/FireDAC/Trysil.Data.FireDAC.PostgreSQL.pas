@@ -8,7 +8,7 @@
   http://codenames.info/operation/orm/
 
 *)
-unit Trysil.Data.FireDAC.FirebirdSQL;
+unit Trysil.Data.FireDAC.PostgreSQL;
 
 interface
 
@@ -19,23 +19,22 @@ uses
   FireDAC.UI.Intf,
   FireDAC.Comp.UI,
   FireDAC.Phys,
-  FireDAC.Phys.IBBase,
-  FireDAC.Phys.FB,
+  FireDAC.Phys.PG,
   FireDAC.Stan.Param,
   FireDAC.Comp.Client,
 
   Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC,
   Trysil.Data.SqlSyntax,
-  Trysil.Data.SqlSyntax.FirebirdSQL;
+  Trysil.Data.SqlSyntax.PostgreSQL;
 
 type
 
-{ TTFirebirdSQLDriver }
+{ TTPostgreSQLDriver }
 
-  TTFirebirdSQLDriver = class(TTFireDACDriver)
+  TTPostgreSQLDriver = class(TTFireDACDriver)
   strict private
-    FDriverLink: TFDPhysFBDriverLink;
+    FDriverLink: TFDPhysPgDriverLink;
   strict protected
     function GetDriverLink: TFDPhysDriverLink; override;
   public
@@ -43,22 +42,18 @@ type
     destructor Destroy; override;
   end;
 
-{ TTFirebirdSQLConnection }
+{ TTPostgreSQLConnection }
 
-  TTFirebirdSQLConnection = class(TTFireDACConnection)
+  TTPostgreSQLConnection = class(TTFireDACConnection)
   strict private
-    class var FDriver: TTFirebirdSQLDriver;
+    const DefaultPort: Integer = 5432;
+  strict private
+    class var FDriver: TTPostgreSQLDriver;
     class constructor ClassCreate;
     class destructor ClassDestroy;
   strict protected
     function CreateSyntaxClasses: TTSyntaxClasses; override;
-    function GetDatabaseVersion: String; override;
   public
-    class procedure RegisterConnection(
-      const AName: String;
-      const AServer: String;
-      const ADatabaseName: String); overload;
-
     class procedure RegisterConnection(
       const AName: String;
       const AServer: String;
@@ -68,66 +63,72 @@ type
 
     class procedure RegisterConnection(
       const AName: String;
+      const AServer: String;
+      const APort: Integer;
+      const AUsername: String;
+      const APassword: String;
+      const ADatabaseName: String); overload;
+
+    class procedure RegisterConnection(
+      const AName: String;
       const AParameters: TStrings); overload;
 
-    class property Driver: TTFirebirdSQLDriver read FDriver;
+    class property Driver: TTPostgreSQLDriver read FDriver;
   end;
 
 implementation
 
-{ TTFirebirdSQLDriver }
+{ TTPostgreSQLDriver }
 
-constructor TTFirebirdSQLDriver.Create;
+constructor TTPostgreSQLDriver.Create;
 begin
   inherited Create;
-  FDriverLink := TFDPhysFBDriverLink.Create(nil);
+  FDriverLink := TFDPhysPgDriverLink.Create(nil);
 end;
 
-destructor TTFirebirdSQLDriver.Destroy;
+destructor TTPostgreSQLDriver.Destroy;
 begin
   FDriverLink.Free;
   inherited Destroy;
 end;
 
-function TTFirebirdSQLDriver.GetDriverLink: TFDPhysDriverLink;
+function TTPostgreSQLDriver.GetDriverLink: TFDPhysDriverLink;
 begin
   result := FDriverLink;
 end;
 
-{ TTFirebirdSQLConnection }
+{ TTPostgreSQLConnection }
 
-class constructor TTFirebirdSQLConnection.ClassCreate;
+class constructor TTPostgreSQLConnection.ClassCreate;
 begin
-  FDriver := TTFirebirdSQLDriver.Create;
+  FDriver := TTPostgreSQLDriver.Create;
 end;
 
-class destructor TTFirebirdSQLConnection.ClassDestroy;
+class destructor TTPostgreSQLConnection.ClassDestroy;
 begin
   FDriver.Free;
 end;
 
-function TTFirebirdSQLConnection.CreateSyntaxClasses: TTSyntaxClasses;
+function TTPostgreSQLConnection.CreateSyntaxClasses: TTSyntaxClasses;
 begin
-  result := TTFirebirdSQLSyntaxClasses.Create;
+  result := TTPostgreSQLSyntaxClasses.Create;
 end;
 
-function TTFirebirdSQLConnection.GetDatabaseVersion: String;
-begin
-  result := Format('FirebirdSQL %s', [inherited GetDatabaseVersion]);
-end;
-
-class procedure TTFirebirdSQLConnection.RegisterConnection(
+class procedure TTPostgreSQLConnection.RegisterConnection(
   const AName: String;
   const AServer: String;
+  const AUsername: String;
+  const APassword: String;
   const ADatabaseName: String);
 begin
   RegisterConnection(
-    AName, AServer, String.Empty, String.Empty, ADatabaseName);
+    AName, AServer, DefaultPort, AUsername, APassword, ADatabaseName);
 end;
 
-class procedure TTFirebirdSQLConnection.RegisterConnection(
+class procedure TTPostgreSQLConnection.RegisterConnection(
   const AName: String;
   const AServer: String;
+  const APort: Integer;
   const AUsername: String;
   const APassword: String;
   const ADatabaseName: String);
@@ -137,21 +138,18 @@ begin
   LParameters := TStringList.Create;
   try
     LParameters.Add(Format('Server=%s', [AServer]));
+    LParameters.Add(Format('Port=%d', [APort]));
     LParameters.Add(Format('Database=%s', [ADatabaseName]));
-    if AUsername.IsEmpty then
-        LParameters.Add('OSAuthent=Yes')
-    else
-    begin
-        LParameters.Add(Format('User_Name=%s', [AUserName]));
-        LParameters.Add(Format('Password=%s', [APassword]));
-    end;
+    LParameters.Add(Format('User_Name=%s', [AUserName]));
+    LParameters.Add(Format('Password=%s', [APassword]));
+
     RegisterConnection(AName, LParameters);
   finally
     LParameters.Free;
   end;
 end;
 
-class procedure TTFirebirdSQLConnection.RegisterConnection(
+class procedure TTPostgreSQLConnection.RegisterConnection(
   const AName: String; const AParameters: TStrings);
 begin
   TTFireDACConnectionPool.Instance.RegisterConnection(

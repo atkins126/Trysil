@@ -20,6 +20,7 @@ uses
   
   Trysil.Types,
   Trysil.Attributes,
+  Trysil.Validation.Attributes,
   Trysil.Generics.Collections,
   Trysil.Lazy;
 
@@ -36,24 +37,34 @@ type
     [TColumn('ID')]
     FID: TTPrimaryKey;
 
+    [TRequired]
+    [TDisplayName('Company name')]
+    [TMaxLength(100)]
     [TColumn('CompanyName')]
     FCompanyName: String;
 
+    [TMaxLength(100)]
     [TColumn('Address')]
     FAddress: String;
 
+    [TMaxLength(100)]
     [TColumn('City')]
     FCity: String;
 
+    [TMaxLength(100)]
     [TColumn('Region')]
     FRegion: String;
 
+    [TMaxLength(20)]
     [TColumn('PostalCode')]
     FPostalCode: String;
 
+    [TMaxLength(100)]
     [TColumn('Country')]
     FCountry: String;
 
+    [TMaxLength(255)]
+    [TEmail]
     [TColumn('Email')]
     FEmail: String;
 
@@ -84,6 +95,8 @@ type
     [TColumn('ID')]
     FID: TTPrimaryKey;
 
+    [TRequired]
+    [TMaxLength(100)]
     [TColumn('Description')]
     FDescription: String;
 
@@ -108,12 +121,17 @@ type
     [TColumn('ID')]
     FID: TTPrimaryKey;
 
+    [TRequired]
+    [TDisplayName('Brand')]
     [TColumn('BrandID')]
     FBrand: TTLazy<TBrand>;
 
+    [TRequired]
+    [TMaxLength(100)]
     [TColumn('Description')]
     FDescription: String;
 
+    [TGreater(0.00)]
     [TColumn('Price')]
     FPrice: Double;
 
@@ -145,15 +163,21 @@ type
     [TColumn('OrderID')]
     FOrderID: TTPrimaryKey;
 
+    [TRequired]
+    [TDisplayName('Product')]
     [TColumn('ProductID')]
     FProduct: TTLazy<TProduct>;
 
+    [TRequired]
+    [TMaxLength(100)]
     [TColumn('Description')]
     FDescription: String;
 
+    [TGreater(0.00)]
     [TColumn('Quantity')]
     FQuantity: Double;
 
+    [TMinValue(0.00)]
     [TColumn('Price')]
     FPrice: Double;
 
@@ -199,9 +223,12 @@ type
     [TColumn('ID')]
     FID: TTPrimaryKey;
 
+    [TRequired]
     [TColumn('OrderDate')]
     FOrderDate: TDateTime;
 
+    [TRequired]
+    [TDisplayName('Customer')]
     [TColumn('CustomerID')]
     FCustomer: TTLazy<TCustomer>;
 

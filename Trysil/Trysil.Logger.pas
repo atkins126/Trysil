@@ -18,7 +18,8 @@ uses
   System.SyncObjs,
   System.Generics.Collections,
 
-  Trysil.Sync;
+  Trysil.Sync,
+  Trysil.LoadBalancing;
 
 type
 
@@ -99,6 +100,10 @@ type
     procedure AddLog(const AItem: TTLoggerItem);
   end;
 
+{ TTLoggerThreads }
+
+  TTLoggerThreads = class(TTRoundRobin<TTLoggerThread>);
+
 { TTLogger }
 
   TTLogger = class
@@ -107,7 +112,9 @@ type
     class constructor ClassCreate;
     class destructor ClassDestroy;
   strict private
-    FThread: TTLoggerThread;
+    const DefaultThreadPoolSize: Integer = 1;
+  strict private
+    FThreads: TTLoggerThreads;
 
     procedure Log(const AItem: TTLoggerItem);
   public
@@ -121,7 +128,9 @@ type
     procedure LogSyntax(const ASyntax: String);
     procedure LogCommand(const ASyntax: String);
 
-    procedure RegisterLogger<T: TTLoggerThread>();
+    procedure RegisterLogger<T: TTLoggerThread>(); overload;
+    procedure RegisterLogger<T: TTLoggerThread>(
+      const AThreadPoolSize: Integer); overload;
 
     class property Instance: TTLogger read FInstance;
   end;
@@ -229,7 +238,13 @@ begin
         Log(FQueue.Dequeue);
       except
         on E: Exception do
-          Log(TTLoggerItem.Create(TTLoggerEvent.Error, E.Message));
+        begin
+          try
+            Log(TTLoggerItem.Create(TTLoggerEvent.Error, E.Message));
+          except
+            // Thread should not crash in case of exception
+          end;
+        end;
       end;
     end;
 
@@ -276,20 +291,22 @@ end;
 constructor TTLogger.Create;
 begin
   inherited Create;
-  FThread := nil;
+  FThreads := TTLoggerThreads.Create;
 end;
 
 destructor TTLogger.Destroy;
 begin
-  if Assigned(FThread) then
-    FThread.Free;
+  FThreads.Free;
   inherited Destroy;
 end;
 
 procedure TTLogger.Log(const AItem: TTLoggerItem);
+var
+  LThread: TTLoggerThread;
 begin
-  if Assigned(FThread) then
-    FThread.AddLog(AItem);
+  LThread := FThreads.Next;
+  if Assigned(LThread) then
+    LThread.AddLog(AItem);
 end;
 
 procedure TTLogger.LogStartTransaction;
@@ -322,11 +339,19 @@ begin
   Log(TTLoggerItem.Create(TTLoggerEvent.Command, ASyntax));
 end;
 
-procedure TTLogger.RegisterLogger<T>();
+procedure TTLogger.RegisterLogger<T>;
 begin
-  if Assigned(FThread) then
-    FThread.Free;
-  FThread := T.Create;
+  RegisterLogger<T>(DefaultThreadPoolSize);
+end;
+
+procedure TTLogger.RegisterLogger<T>(const AThreadPoolSize: Integer);
+begin
+  FThreads.CreateItems(
+    function: TTLoggerThread
+    begin
+      result := T.Create;
+    end,
+    AThreadPoolSize);
 end;
 
 end.

@@ -20,6 +20,7 @@ uses
   FireDAC.Comp.UI,
   FireDAC.Stan.Param,
   FireDAC.Comp.Client,
+  FireDAC.Phys,
 
   Trysil.Types,
   Trysil.Filter,
@@ -63,6 +64,24 @@ type
     constructor Create(const AParam: TFDParam);
 
     procedure Clear; override;
+  end;
+
+{ TTFireDACDriver }
+
+  TTFireDACDriver = class abstract
+  strict private
+    function GetVendorHome: String;
+    procedure SetVendorHome(const AValue: String);
+    function GetVendorLib: String;
+    procedure SetVendorLib(const AValue: String);
+  strict protected
+    function GetDriverLink: TFDPhysDriverLink; virtual; abstract;
+  public
+    procedure AfterConstruction; override;
+
+    property DriverLink: TFDPhysDriverLink read GetDriverLink;
+    property VendorHome: String read GetVendorHome write SetVendorHome;
+    property VendorLib: String read GetVendorLib write SetVendorLib;
   end;
 
 { TTFireDACConnection }
@@ -196,6 +215,34 @@ end;
 procedure TTFDParam.SetAsGuid(const AValue: TGUID);
 begin
   FParam.AsGUID := AValue;
+end;
+
+{ TTFireDACDriver }
+
+procedure TTFireDACDriver.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  DriverLink.DriverID := Format('Trysil_%s', [DriverLink.BaseDriverID]);
+end;
+
+function TTFireDACDriver.GetVendorHome: String;
+begin
+  result := DriverLink.VendorHome;
+end;
+
+procedure TTFireDACDriver.SetVendorHome(const AValue: String);
+begin
+  DriverLink.VendorHome := AValue;
+end;
+
+function TTFireDACDriver.GetVendorLib: String;
+begin
+  result := DriverLink.VendorLib;
+end;
+
+procedure TTFireDACDriver.SetVendorLib(const AValue: String);
+begin
+  DriverLink.VendorLib := AValue;
 end;
 
 { TTFireDACConnection }

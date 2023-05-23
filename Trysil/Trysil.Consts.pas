@@ -12,10 +12,6 @@ unit Trysil.Consts;
 
 interface
 
-uses
-  System.SysUtils,
-  System.Classes;
-
 resourcestring
   SNotValidEventClass = 'Not valid constructor in TTEvent class: %0:s.';
   SNotEventType = 'Not valid TTEvent type: %0:s.';
@@ -32,6 +28,18 @@ resourcestring
   SNotDefinedSequence = 'Sequence: not defined.';
   SReadOnly = '"Primary Key" or "Version Column" are not defined.';
   SReadOnlyPrimaryKey = '"Primary Key" is not defined.';
+  SRequiredValidation = '%0:s cannot be empty.';
+  SNotInvalidTypeValidation = '%0:s type not valid for validation.';
+  SMaxLengthValidation = '%0:s cannot be longer than %1:d characters.';
+  SMinLengthValidation = '%0:s cannot be shorter than %1:d characters.';
+  SMinValueValidation = '%0:s cannot be less than %1:s.';
+  SMaxValueValidation = '%0:s cannot exceed %1:s.';
+  SLessValidation = '%0:s must be less than %1:s.';
+  SGreaterValidation = '%0:s must be greater than %1:s.';
+  SRangeValidation = '%0:s must be between %1:s and %2:s.';
+  SRegexValidation = '%1:s is not a valid value for %0:s.';
+  SEMailValidation = '%0:s: %1:s is not a valid email address.';
+  SNotValidValidator = 'Validator method is not valid: %0:s method of %1:s entity.';
   SInvalidNullableType = 'Null type is invalid.';
   SPropertyIDNotFound = 'Property ID not found';
   STypeIsNotAList = 'Type %0:s is not a generic list.';

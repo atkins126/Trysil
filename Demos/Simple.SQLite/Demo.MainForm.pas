@@ -33,6 +33,7 @@ uses
   FireDAC.VCLUI.Wait,
   Trysil.Filter,
   Trysil.Data,
+  Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC.SQLite,
   Trysil.Context,
   Trysil.Generics.Collections,
@@ -99,6 +100,8 @@ const
   DatabaseName: String = 'Test.db';
 begin
   inherited Create(AOwner);
+  TTFireDACConnectionPool.Instance.Config.Enabled := False;
+
   FCreateDatabase := not TFile.Exists(DatabaseName);
 
   TTSQLiteConnection.RegisterConnection('Test', DatabaseName);

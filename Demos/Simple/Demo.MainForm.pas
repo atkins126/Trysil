@@ -32,6 +32,7 @@ uses
   FireDAC.VCLUI.Wait,
   Trysil.Filter,
   Trysil.Data,
+  Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC.SqlServer,
   Trysil.Context,
   Trysil.Generics.Collections,
@@ -98,6 +99,8 @@ var
   LConnection: TConnectionConfig;
 begin
   inherited Create(AOwner);
+  TTFireDACConnectionPool.Instance.Config.Enabled := True;
+
   FConfig := TConfig.Create;
   for LConnection in FConfig.Connections do
     TTSqlServerConnection.RegisterConnection(

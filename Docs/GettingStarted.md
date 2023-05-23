@@ -18,11 +18,11 @@ In this example we will see how to:
 - [Define entity](https://github.com/davidlastrucci/Trysil/blob/master/Docs/DefineEntity.md)
 - [Use Trysil](https://github.com/davidlastrucci/Trysil/blob/master/Docs/UseTrysil.md)
 
+Don't write code like [this](https://github.com/davidlastrucci/Trysil/blob/master/Docs/NotWriteThis.md), write [this](https://github.com/davidlastrucci/Trysil/blob/master/Docs/WriteThis.md)
+
 **Enjoy!**
 
 ---
-<p>
-  <a href="https://www.lastrucci.net/">
-    <img width="400" height="100" src="https://www.lastrucci.net/images/badge.small.png" title="https://www.lastrucci.net/">
-  </a>
-</p>
+
+[https://www.lastrucci.net/](https://www.lastrucci.net)
+

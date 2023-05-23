@@ -16,6 +16,7 @@ uses
   System.Classes,
   System.SysUtils,
   Trysil.Data,
+  Trysil.Data.FireDAC.ConnectionPool,
   Trysil.Data.FireDAC.SqlServer,
   Trysil.Http.Context,
 
@@ -43,6 +44,7 @@ implementation
 constructor TAPIContext.Create;
 begin
   inherited Create;
+  TTFireDACConnectionPool.Instance.Config.Enabled := True;
   FConnection := TTSqlServerConnection.Create(
     TAPIConfig.Instance.Database.ConnectionName);
   FContext := TTHttpContext.Create(FConnection);

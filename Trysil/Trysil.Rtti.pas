@@ -34,14 +34,16 @@ type
 
   TTValueHelper = record helper for TValue
   strict private
+    function GetIsNull: Boolean;
     function GetIsNullable: Boolean;
   public
     function NullableValueToString: String;
 
+    property IsNull: Boolean read GetIsNull;
     property IsNullable: Boolean read GetIsNullable;
   end;
 
-{$IF CompilerVersion < 35} // Delphi 11.0 Alexandria
+{$IF CompilerVersion < 35} // Delphi 11 Alexandria
 
 { TTRttiObjectHelper }
 
@@ -64,6 +66,22 @@ type
     function GetInheritedAttributes: TArray<TCustomAttribute>;
   end;
 
+{ TTRtti }
+
+  TTRtti = class
+  strict private
+    class var FHasPackages: Boolean;
+
+    class constructor ClassCreate;
+
+    class function GetHasPackages: Boolean;
+    class function IsSameType(
+      const AClass: TClass; const AType: TRttiType): Boolean;
+  public
+    class function InheritsFrom(
+      const AObject: TObject; const AType: TRttiType): Boolean;
+  end;
+
 { TTRttiMember }
 
   TTRttiMember = class abstract
@@ -73,7 +91,6 @@ type
     FIsClass: Boolean;
     FRttiType: TRttiType;
 
-    function InheritsFrom(const AObject: TObject; AType: TRttiType): Boolean;
     function InternalCreateObject(
       const AContext: TObject;
       const AColumnName: String): TTValue;
@@ -223,6 +240,30 @@ begin
   result := String(Self.TypeInfo.Name).StartsWith('TTNullable<');
 end;
 
+function TTValueHelper.GetIsNull: Boolean;
+begin
+  result := False;
+  if Self.IsNullable then
+  begin
+    if Self.IsType<TTNullable<String>>() then
+      result := Self.AsType<TTNullable<String>>().IsNull
+    else if Self.IsType<TTNullable<Integer>>() then
+      result := Self.AsType<TTNullable<Integer>>().IsNull
+    else if Self.IsType<TTNullable<Int64>>() then
+      result := Self.AsType<TTNullable<Int64>>().IsNull
+    else if Self.IsType<TTNullable<Double>>() then
+      result := Self.AsType<TTNullable<Double>>().IsNull
+    else if Self.IsType<TTNullable<Boolean>>() then
+      result := Self.AsType<TTNullable<Boolean>>().IsNull
+    else if Self.IsType<TTNullable<TDateTime>>() then
+      result := Self.AsType<TTNullable<TDateTime>>().IsNull
+    else if Self.IsType<TTNullable<TGuid>>() then
+      result := Self.AsType<TTNullable<TGuid>>().IsNull
+    else
+      raise ETException.Create(SInvalidNullableType);
+  end;
+end;
+
 function TTValueHelper.NullableValueToString: String;
 begin
   if Self.IsType<TTNullable<String>>() then
@@ -243,7 +284,7 @@ begin
     raise ETException.Create(SInvalidNullableType);
 end;
 
-{$IF CompilerVersion < 35} // Delphi 11.0 Alexandria
+{$IF CompilerVersion < 35} // Delphi 11 Alexandria
 
 { TTRttiObjectHelper }
 
@@ -309,28 +350,60 @@ begin
   end;
 end;
 
+{ TTRtti }
+
+class constructor TTRtti.ClassCreate;
+begin
+  FHasPackages := GetHasPackages;
+end;
+
+class function TTRtti.GetHasPackages: Boolean;
+var
+  LContext: TRttiContext;
+  LPackages: TArray<TRttiPackage>;
+begin
+  LContext := TRttiContext.Create;
+  try
+    LPackages := LContext.GetPackages;
+    result := Length(LPackages) > 1;
+  finally
+    LContext.Free;
+  end;
+end;
+
+class function TTRtti.IsSameType(
+  const AClass: TClass; const AType: TRttiType): Boolean;
+begin
+  // RTTI, Package & Generics
+  if FHasPackages then
+    result := String.Compare(
+      AClass.QualifiedClassName, AType.QualifiedName, True) = 0
+  else
+    result := AClass.ClassInfo = AType.Handle;
+end;
+
+class function TTRtti.InheritsFrom(
+  const AObject: TObject; const AType: TRttiType): Boolean;
+var
+  LClass: TClass;
+begin
+  LClass := AObject.ClassType;
+  result := IsSameType(LClass, AType);
+  while not result do
+  begin
+    LClass := LClass.ClassParent;
+    if not Assigned(LClass) then
+      Break;
+    result := IsSameType(LClass, AType);
+  end;
+end;
+
 { TTRttiMember }
 
 constructor TTRttiMember.Create(const AName: String);
 begin
   inherited Create;
   FName := AName;
-end;
-
-function TTRttiMember.InheritsFrom(
-  const AObject: TObject; AType: TRttiType): Boolean;
-var
-  LClass: TClass;
-begin
-  LClass := AObject.ClassType;
-  result := LClass.ClassInfo = AType.Handle;
-  while not result do
-  begin
-    LClass := LClass.ClassParent;
-    if not Assigned(LClass) then
-      Break;
-    result := LClass.ClassInfo = AType.Handle;
-  end;
 end;
 
 function TTRttiMember.InternalCreateObject(
@@ -349,7 +422,7 @@ begin
       LIsValid := Length(LParameters) = 2;
       if LIsValid then
         LIsValid :=
-          InheritsFrom(AContext, LParameters[0].ParamType) and
+          TTRtti.InheritsFrom(AContext, LParameters[0].ParamType) and
           (LParameters[1].ParamType.Handle = TypeInfo(String));
 
       if LIsValid then
@@ -786,7 +859,7 @@ begin
     begin
       LParameters := LMethod.GetParameters;
       if (Length(LParameters) = 1) and
-        (LParameters[0].ParamType.Handle = AContext.ClassInfo) then
+        TTRtti.InheritsFrom(AContext, LParameters[0].ParamType) then
       begin
         result := LMethod;
         Break;
