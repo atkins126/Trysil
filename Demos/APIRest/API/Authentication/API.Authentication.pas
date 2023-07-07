@@ -5,7 +5,7 @@
   All rights reserved
 
   Trysil - Operation ORM (World War II)
-  Http://codenames.info/operation/orm/
+  http://codenames.info/operation/orm/
 
 *)
 unit API.Authentication;
@@ -61,10 +61,17 @@ begin
 end;
 
 function TAPIAuthentication.IsValid(const APayload: TAPIJWTPayload): Boolean;
+var
+  LArea: String;
 begin
   result := APayload.IsValid;
   if result then
+  begin
+    Context.Payload.Assign(APayload);
     FRequest.User.Username := APayload.Username;
+    for LArea in APayload.Areas do
+      FRequest.User.Areas.Add(LArea);
+  end;
 end;
 
 end.
