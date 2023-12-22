@@ -1,9 +1,10 @@
 <p align="center">
-  <img width="300" height="292" src="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil.png" title="Trysil - Operation ORM">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil_Dark.png">
+    <img img width="300" height="107" src="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil_Light.png" alt="Trysil - Delphi ORM" title="Trysil - Delphi ORM">
+  </picture>
 </p>
 
-# Trysil
-> **Trysil**<br>
 > *Copyright © [David Lastrucci](https://www.lastrucci.net/)*<br>
 > *All rights reserved*<br>
 > <br>
@@ -12,13 +13,13 @@
 
 ### Run Simple Demo
 
-Trysil it's an ORM for Delphi (for **Microsoft SQL Server**, **Firebird** and **SQLite**).
+Trysil it's an ORM for Delphi (for **Microsoft SQL Server**, **Firebird**, **PostgreSQL** and **SQLite**).
 
 For run demo project in **Demos/Simple** folder, you have to do:
 
 - Create a SQL Server database and execute the script [Demo.sql](https://github.com/davidlastrucci/Trysil/blob/master/Demos/Simple/Sql/Demo.sql) in **Demos/Simple/Sql** folder
-- Edit the [Demo.config.json](https://github.com/davidlastrucci/Trysil/blob/master/Demos/Simple/Demo.config.json) file in **Demos/Simple** folder for change connection to SQL Server database
-- Copy the [Demo.config.json](https://github.com/davidlastrucci/Trysil/blob/master/Demos/Simple/Demo.config.json) in **$(Platform)/$(Config)** folder (the executable folder)
+- Edit the [Demo.config.json](https://github.com/davidlastrucci/Trysil/blob/master/Demos/Simple/Demo.config.json) file in **Demos\\Simple** folder for change connection to SQL Server database
+- Copy the [Demo.config.json](https://github.com/davidlastrucci/Trysil/blob/master/Demos/Simple/Demo.config.json) in **\$(Platform)\\\$(Config)** folder (the executable folder)
 
 **Demo.config.json (OS authentication)**
 <pre>
@@ -52,5 +53,5 @@ Alternatively you can use the sample project located in the **Demos/Simple.SQLit
 
 ---
 
+Make With ❤ @davidlastrucci<br>
 [https://www.lastrucci.net/](https://www.lastrucci.net)
-

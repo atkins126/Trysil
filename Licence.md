@@ -1,9 +1,10 @@
 <p align="center">
-  <img width="300" height="292" src="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil.png" title="Trysil - Operation ORM">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil_Dark.png">
+    <img img width="300" height="107" src="https://github.com/davidlastrucci/Trysil/blob/master/Docs/Trysil_Light.png" alt="Trysil - Delphi ORM" title="Trysil - Delphi ORM">
+  </picture>
 </p>
 
-# Trysil - Licence
-> **Trysil**<br>
 > *Copyright © [David Lastrucci](https://www.lastrucci.net/)*<br>
 > *All rights reserved*<br>
 > <br>

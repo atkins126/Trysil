@@ -1,4 +1,4 @@
-package Trysi.Httpl270;
+package Trysil.Http290;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -13,8 +13,8 @@ package Trysi.Httpl270;
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
 {$OPTIMIZATION OFF}
-{$OVERFLOWCHECKS OFF}
-{$RANGECHECKS OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
 {$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
 {$STACKFRAMES ON}
@@ -32,8 +32,8 @@ requires
   IndySystem,
   IndyProtocols,
   IndyCore,
-  Trysil270,
-  Trysil.JSon270;
+  Trysil290,
+  Trysil.JSon290;
 
 contains
   Trysil.Http.Attributes in '..\..\Trysil.Http\Trysil.Http.Attributes.pas',

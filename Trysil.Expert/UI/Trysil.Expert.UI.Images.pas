@@ -27,22 +27,12 @@ type
 
   TTImagesDataModule = class(TDataModule)
     ImageList: TImageList;
-    ButtonsImageList: TImageList;
   strict private
     class var FInstance: TTImagesDataModule;
     class constructor ClassCreate;
     class destructor ClassDestroy;
-  strict private
-    FLogo: TBitmap;
   public
-    constructor Create; reintroduce;
-    destructor Destroy; override;
-
-    procedure AfterConstruction; override;
-
-    property Logo: TBitmap read FLogo;
     property Images: TImageList read ImageList;
-    property ButtonsImages: TImageList read ButtonsImageList;
 
     class property Instance: TTImagesDataModule read FInstance;
   end;
@@ -57,30 +47,12 @@ implementation
 
 class constructor TTImagesDataModule.ClassCreate;
 begin
-  FInstance := TTImagesDataModule.Create;
+  FInstance := TTImagesDataModule.Create(nil);
 end;
 
 class destructor TTImagesDataModule.ClassDestroy;
 begin
   FInstance.Free;
-end;
-
-constructor TTImagesDataModule.Create;
-begin
-  inherited Create(nil);
-  FLogo := TBitmap.Create;
-end;
-
-destructor TTImagesDataModule.Destroy;
-begin
-  FLogo.Free;
-  inherited Destroy;
-end;
-
-procedure TTImagesDataModule.AfterConstruction;
-begin
-  inherited AfterConstruction;
-  FLogo.LoadFromResourceName(HInstance, 'TRYSIL_48');
 end;
 
 end.
