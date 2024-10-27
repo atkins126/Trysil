@@ -23,9 +23,9 @@ uses
 
 type
 
-{ FireDACConfigConnectionPool }
+{ TTFireDACConfigConnectionPool }
 
-  FireDACConfigConnectionPool = class
+  TTFireDACConfigConnectionPool = class
   strict private
     FEnabled: Boolean;
     FMaximumItems: Integer;
@@ -51,7 +51,7 @@ type
     class function GetInstance: TTFireDACConnectionPool; static;
   strict private
     FManager: TFDManager;
-    FConfig: FireDACConfigConnectionPool;
+    FConfig: TTFireDACConfigConnectionPool;
 
     procedure AddConnectionPooling(const AParameters: TStrings);
   public
@@ -64,17 +64,18 @@ type
       const AName: String;
       const ADriver: String;
       const AParameters: TStrings);
+    procedure UnregisterConnection(const AName: String);
 
-    property Config: FireDACConfigConnectionPool read FConfig;
+    property Config: TTFireDACConfigConnectionPool read FConfig;
 
     class property Instance: TTFireDACConnectionPool read GetInstance;
   end;
 
 implementation
 
-{ FireDACConfigConnectionPool }
+{ TTFireDACConfigConnectionPool }
 
-constructor FireDACConfigConnectionPool.Create;
+constructor TTFireDACConfigConnectionPool.Create;
 begin
   inherited Create;
   FEnabled := False;
@@ -108,7 +109,7 @@ constructor TTFireDACConnectionPool.Create;
 begin
   inherited Create;
   FManager := TFDManager.Create(nil);
-  FConfig := FireDACConfigConnectionPool.Create;
+  FConfig := TTFireDACConfigConnectionPool.Create;
 end;
 
 destructor TTFireDACConnectionPool.Destroy;
@@ -156,6 +157,11 @@ begin
   finally
     LParameters.Free;
   end;
+end;
+
+procedure TTFireDACConnectionPool.UnregisterConnection(const AName: String);
+begin
+  FManager.DeleteConnectionDef(AName);
 end;
 
 end.

@@ -131,7 +131,10 @@ end;
 
 function TTJSonIntegerSerializer.ToJSon(const AValue: TTValue): TJSonValue;
 begin
-  result := TJSonNumber.Create(AValue.AsType<Integer>());
+  if AValue.Kind = TTypeKind.tkEnumeration then
+    result := TJSonNumber.Create(AValue.AsOrdinal)
+  else
+    result := TJSonNumber.Create(AValue.AsType<Integer>());
 end;
 
 { TTJSonLargeIntegerSerializer }
@@ -159,9 +162,9 @@ end;
 
 function TTJSonDateTimeSerializer.ToJSon(const AValue: TTValue): TJSonValue;
 begin
-  // TODO: DateTime format
   result := TJSonString.Create(
-    DateToISO8601(AValue.AsType<TDateTime>(), True));
+    DateToISO8601(
+      TTimeZone.Local.ToUniversalTime(AValue.AsType<TDateTime>()), True));
 end;
 
 { TTJSonGuidSerializer }

@@ -23,9 +23,11 @@ uses
   Trysil.Mapping,
   Trysil.Metadata,
 
+  Trysil.JSon.Attributes,
   Trysil.JSon.Types,
   Trysil.JSon.Rtti,
   Trysil.JSon.Events,
+  Trysil.JSon.Sqids,
   Trysil.JSon.Serializer.Classes;
 
 type
@@ -100,7 +102,8 @@ var
 begin
   LLazy := TTRttiLazy.Create(AObject);
   try
-    AJSon.AddPair(Format('%sID', [AName]), TJSonNumber.Create(LLazy.ID));
+    AJSon.AddPair(
+      Format('%sID', [AName]), TTJSonSqids.Instance.Encode(LLazy.ID));
   finally
     LLazy.Free;
   end;
@@ -209,6 +212,7 @@ procedure TTJSonSerializer.ColumnsToJSonObject(
 var
   LTableMap: TTTableMap;
   LColumnMap: TTColumnMap;
+  LJSonIgnore: TJSonIgnoreAttribute;
   LName: String;
   LObject: TObject;
   LValue: TJSonValue;
@@ -216,22 +220,30 @@ begin
   LTableMap := TTMapper.Instance.Load(AObject.ClassInfo);
   for LColumnMap in LTableMap.Columns do
   begin
-    LName := GetName(LColumnMap.Member.Name);
-
-    if LColumnMap.Member.IsNullable then
-      LValue := GetJSonNullableValue(LColumnMap.Member.GetValue(AObject))
-    else if LColumnMap.Member.IsClass then
+    LJSonIgnore := LColumnMap.Member.GetAttribute<TJSonIgnoreAttribute>();
+    if not Assigned(LJSonIgnore) then
     begin
-      LObject := LColumnMap.Member.GetValue(AObject).AsObject;
-      if TTRttiLazy.IsLazy(LObject) then
-        AddLazyID(LObject, LName, AResult);
-      LValue := GetJSonObjectOrArrayValue(LObject);
-    end
-    else
-      LValue := GetJSonValue(LColumnMap.Member.GetValue(AObject));
+      LName := GetName(LColumnMap.Member.Name);
 
-    if Assigned(LValue) then
-      AResult.AddPair(LName, LValue);
+      if LColumnMap.Member.IsNullable then
+        LValue := GetJSonNullableValue(LColumnMap.Member.GetValue(AObject))
+      else if LColumnMap.Member.IsClass then
+      begin
+        LObject := LColumnMap.Member.GetValue(AObject).AsObject;
+        if TTRttiLazy.IsLazy(LObject) then
+          AddLazyID(LObject, LName, AResult);
+        LValue := GetJSonObjectOrArrayValue(LObject);
+      end
+      else if TTJSonSqids.Instance.UseSqids and
+        (LColumnMap = LTableMap.PrimaryKey) then
+        LValue := TTJSonSqids.Instance.Encode(
+          LColumnMap.Member.GetValue(AObject).AsType<Integer>)
+      else
+        LValue := GetJSonValue(LColumnMap.Member.GetValue(AObject));
+
+      if Assigned(LValue) then
+        AResult.AddPair(LName, LValue);
+    end;
   end;
 end;
 

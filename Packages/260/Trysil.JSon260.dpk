@@ -32,6 +32,7 @@ requires
   Trysil260;
 
 contains
+  Trysil.JSon.Attributes in '..\..\Trysil.JSon\Trysil.JSon.Attributes.pas',
   Trysil.JSon.Consts in '..\..\Trysil.JSon\Trysil.JSon.Consts.pas',
   Trysil.JSon.Context in '..\..\Trysil.JSon\Trysil.JSon.Context.pas',
   Trysil.JSon.Deserializer.Classes in '..\..\Trysil.JSon\Trysil.JSon.Deserializer.Classes.pas',
@@ -41,6 +42,7 @@ contains
   Trysil.JSon.Rtti in '..\..\Trysil.JSon\Trysil.JSon.Rtti.pas',
   Trysil.JSon.Serializer.Classes in '..\..\Trysil.JSon\Trysil.JSon.Serializer.Classes.pas',
   Trysil.JSon.Serializer in '..\..\Trysil.JSon\Trysil.JSon.Serializer.pas',
+  Trysil.JSon.Sqids in '..\..\Trysil.JSon\Trysil.JSon.Sqids.pas',
   Trysil.JSon.Types in '..\..\Trysil.JSon\Trysil.JSon.Types.pas';
 
 end.

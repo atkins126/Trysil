@@ -35,6 +35,7 @@ type
 
   TTGenericConnection = class abstract(TTConnection)
   strict private
+    FConnectionID: String;
     FSyntaxClasses: TTSyntaxClasses;
   strict protected
     function CreateSyntaxClasses: TTSyntaxClasses; virtual; abstract;
@@ -84,6 +85,7 @@ type
 
     function GetSequenceID(const ATableMap: TTTableMap): TTPrimaryKey; override;
 
+    property ConnectionID: String read FConnectionID;
     property SyntaxClasses: TTSyntaxClasses read FSyntaxClasses;
   end;
 
@@ -174,6 +176,7 @@ implementation
 constructor TTGenericConnection.Create;
 begin
   inherited Create;
+  FConnectionID := TGUID.NewGuid().ToString().ToLower().Substring(1, 36);
   FSyntaxClasses := CreateSyntaxClasses;
 end;
 
@@ -187,21 +190,21 @@ procedure TTGenericConnection.StartTransaction;
 begin
   if InTransaction then
     raise ETException.CreateFmt(SInTransaction, ['StartTransaction']);
-  TTLogger.Instance.LogStartTransaction;
+  TTLogger.Instance.LogStartTransaction(FConnectionID);
 end;
 
 procedure TTGenericConnection.CommitTransaction;
 begin
   if not InTransaction then
     raise ETException.CreateFmt(SNotInTransaction, ['CommitTransaction']);
-  TTLogger.Instance.LogCommit;
+  TTLogger.Instance.LogCommit(FConnectionID);
 end;
 
 procedure TTGenericConnection.RollbackTransaction;
 begin
   if not InTransaction then
     raise ETException.CreateFmt(SNotInTransaction, ['RollbackTransaction']);
-  TTLogger.Instance.LogRollback;
+  TTLogger.Instance.LogRollback(FConnectionID);
 end;
 
 function TTGenericConnection.SelectCount(
@@ -283,7 +286,7 @@ begin
   try
     LDataset := CreateDataSet(LSyntax.SQL, TTFilter.Empty);
     try
-      TTLogger.Instance.LogSyntax(LSyntax.SQL);
+      TTLogger.Instance.LogSyntax(FConnectionID, LSyntax.SQL);
       if not LDataSet.IsEmpty then
         result := LDataSet.Fields[0].AsString;
     finally
@@ -302,8 +305,7 @@ var
   LDataset: TDataset;
   LIndex: Integer;
 begin
-  LSyntax := FSyntaxClasses.Metadata.Create(
-    Self, ATableMap, ATableMetadata);
+  LSyntax := FSyntaxClasses.Metadata.Create(Self, ATableMap);
   try
     LDataset := CreateDataSet(LSyntax.SQL, TTFilter.Empty);
     try
@@ -330,7 +332,7 @@ begin
   try
     LDataset := CreateDataSet(LSyntax.SQL, TTFilter.Empty);
     try
-      TTLogger.Instance.LogSyntax(LSyntax.SQL);
+      TTLogger.Instance.LogSyntax(FConnectionID, LSyntax.SQL);
       result := LDataset.Fields[0].AsInteger;
     finally
       LDataset.Free;
@@ -376,7 +378,7 @@ begin
   inherited Create(ATableMap);
   FConnection := AConnection;
   FSyntax := AConnection.SyntaxClasses.Select.Create(
-    AConnection, ATableMap, ATableMetadata, AFilter);
+    AConnection, ATableMap, AFilter);
   FFilter := AFilter;
 end;
 
@@ -389,7 +391,7 @@ end;
 function TTGenericReader.GetDataset: TDataset;
 begin
   result := FConnection.CreateDataset(FSyntax.SQL, FFilter);
-  TTLogger.Instance.LogSyntax(FSyntax.SQL);
+  TTLogger.Instance.LogSyntax(FConnection.ConnectionID, FSyntax.SQL);
 end;
 
 { TTGenericCommand }
@@ -449,7 +451,7 @@ begin
     try
       BeforeExecute(AEntity, AEvent, ABeforeEventMethodType);
 
-      TTLogger.Instance.LogCommand(ASQL);
+      TTLogger.Instance.LogCommand(FConnection.ConnectionID, ASQL);
 
       LRowsAffected := FConnection.Execute(
         ASQL,
@@ -479,8 +481,7 @@ procedure TTGenericInsertCommand.Execute(
 var
   LSyntax: TTCommandSyntax;
 begin
-  LSyntax := FConnection.SyntaxClasses.Insert.Create(
-    FConnection, FTableMap, FTableMetadata);
+  LSyntax := FConnection.SyntaxClasses.Insert.Create(FConnection, FTableMap);
   try
     ExecuteCommand(
       LSyntax.GetSqlSyntax([]),
@@ -500,8 +501,7 @@ procedure TTGenericUpdateCommand.Execute(
 var
   LSyntax: TTCommandSyntax;
 begin
-  LSyntax := FConnection.SyntaxClasses.Update.Create(
-    FConnection, FTableMap, FTableMetadata);
+  LSyntax := FConnection.SyntaxClasses.Update.Create(FConnection, FTableMap);
   try
     ExecuteCommand(
       LSyntax.GetSqlSyntax(GetWhereColumns),
@@ -549,8 +549,7 @@ procedure TTGenericDeleteCommand.Execute(
 var
   LSyntax: TTCommandSyntax;
 begin
-  LSyntax := FConnection.SyntaxClasses.Delete.Create(
-    FConnection, FTableMap, FTableMetadata);
+  LSyntax := FConnection.SyntaxClasses.Delete.Create(FConnection, FTableMap);
   try
     ExecuteCommand(
       LSyntax.GetSqlSyntax(GetWhereColumns),

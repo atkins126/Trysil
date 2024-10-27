@@ -41,6 +41,12 @@ type
     FEntity: TObject;
     FErrors: TTValidationErrors;
 
+    function TryInvoke(
+      const AValidatorMap: TTValidatorMap): Boolean; overload;
+    procedure TryInvoke(
+      const AValidatorMap: TTValidatorMap;
+      const AArgs: TArray<TTValue>); overload;
+
     procedure ValidateColumns;
     procedure ValidateMethods;
   public
@@ -104,6 +110,43 @@ begin
   ValidateMethods;
 end;
 
+function TTResolverValidator.TryInvoke(
+  const AValidatorMap: TTValidatorMap): Boolean;
+var
+  LLength: Integer;
+begin
+  LLength := Length(AValidatorMap.Parameters);
+  result := (LLength = 0);
+  if result then
+    TryInvoke(AValidatorMap, [])
+  else if LLength = 1 then
+  begin
+    result := TTRtti.InheritsFrom(
+      FErrors, AValidatorMap.Parameters[0].ParamType);
+    if result then
+      TryInvoke(AValidatorMap, [FErrors]);
+  end
+  else if LLength = 2 then
+  begin
+    result :=
+      TTRtti.InheritsFrom(FContext, AValidatorMap.Parameters[0].ParamType) and
+      TTRtti.InheritsFrom(FErrors, AValidatorMap.Parameters[1].ParamType);
+    if result then
+      TryInvoke(AValidatorMap, [FContext, FErrors])
+  end;
+end;
+
+procedure TTResolverValidator.TryInvoke(
+  const AValidatorMap: TTValidatorMap; const AArgs: TArray<TTValue>);
+begin
+  try
+    AValidatorMap.Method.Invoke(FEntity, AArgs);
+  except
+    on E: Exception do
+      FErrors.Add(String.Empty, E.Message);
+  end;
+end;
+
 procedure TTResolverValidator.ValidateColumns;
 var
   LColumnMap: TTColumnMap;
@@ -115,31 +158,11 @@ end;
 procedure TTResolverValidator.ValidateMethods;
 var
   LValidatorMap: TTValidatorMap;
-  LLength: Integer;
-  LIsValid: Boolean;
 begin
   for LValidatorMap in FTableMap.Validators do
-  begin
-    LLength := Length(LValidatorMap.Parameters);
-    if LLength = 0 then
-      LValidatorMap.Method.Invoke(FEntity, [])
-    else
-    begin
-      LIsValid := (LLength = 2);
-      if LIsValid then
-        LIsValid :=
-          TTRtti.InheritsFrom(
-            FContext, LValidatorMap.Parameters[0].ParamType) and
-          TTRtti.InheritsFrom(
-            FErrors, LValidatorMap.Parameters[1].ParamType);
-      if not LIsValid then
-        FErrors.Add(
-          String.Empty,
-          Format(SNotValidValidator, [
-            LValidatorMap.Method.Name, FEntity.ClassName]));
-      LValidatorMap.Method.Invoke(FEntity, [FContext, FErrors])
-    end;
-  end;
+    if not TryInvoke(LValidatorMap) then
+      FErrors.Add(String.Empty, Format(SNotValidValidator, [
+        LValidatorMap.Method.Name, FEntity.ClassName]));
 end;
 
 { TTResolver }

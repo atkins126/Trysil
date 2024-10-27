@@ -60,6 +60,7 @@ type
     procedure SetAsDateTime(const AValue: TDateTime); override;
     function GetAsGuid: TGUID; override;
     procedure SetAsGuid(const AValue: TGUID); override;
+    procedure SetAsBytes(const AValue: TBytes); override;
   public
     constructor Create(const AParam: TFDParam);
 
@@ -121,6 +122,8 @@ type
       const ATableMap: TTTableMap;
       const ATableMetadata: TTTableMetadata;
       const AEntity: TObject): Integer; override;
+
+    class procedure UnregisterConnection(const AName: String); virtual;
   end;
 
 implementation
@@ -216,6 +219,20 @@ end;
 procedure TTFDParam.SetAsGuid(const AValue: TGUID);
 begin
   FParam.AsGUID := AValue;
+end;
+
+procedure TTFDParam.SetAsBytes(const AValue: TBytes);
+var
+  LStream: TMemoryStream;
+begin
+  LStream := TMemoryStream.Create;
+  try
+    LStream.Write(AValue, Length(AValue));
+    LStream.Position := 0;
+    FParam.LoadFromStream(LStream, FParam.DataType);
+  finally
+    LStream.Free;
+  end;
 end;
 
 { TTFireDACDriver }
@@ -347,7 +364,7 @@ begin
     LParam := TTFDParam.Create(LFireDACParam);
     try
       LParameter := TTParameterFactory.Instance.CreateParameter(
-        AParameter.DataType, LParam);
+        ConnectionID, AParameter.DataType, LParam);
       try
         LParameter.SetValue(AParameter.Value);
       finally
@@ -383,6 +400,7 @@ begin
       LParam := TTFDParam.Create(LFireDACParam);
       try
         LParameter := TTParameterFactory.Instance.CreateParameter(
+          ConnectionID,
           LColumn.DataType,
           LParam,
           GetColumnMap(ATableMap, LColumn.ColumnName));
@@ -416,6 +434,11 @@ begin
     raise;
   end;
   result := LDataSet;
+end;
+
+class procedure TTFireDACConnection.UnregisterConnection(const AName: String);
+begin
+  TTFireDACConnectionPool.Instance.UnregisterConnection(AName);
 end;
 
 end.

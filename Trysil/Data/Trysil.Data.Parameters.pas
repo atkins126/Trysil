@@ -17,6 +17,7 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   System.Rtti,
+  System.NetEncoding,
   Data.DB,
 
   Trysil.Consts,
@@ -32,12 +33,18 @@ type
 { TTParameter }
 
   TTParameter = class abstract
+  strict private
+    FConnectionID: String;
   strict protected
     FParam: TTParam;
     FColumnMap: TTColumnMap;
+
+    procedure LogParameter(const AName: String; const AValue: String);
   public
-    constructor Create(const AParam: TTParam); overload;
     constructor Create(
+      const AConnectionID: String; const AParam: TTParam); overload;
+    constructor Create(
+      const AConnectionID: String;
       const AParam: TTParam;
       const AColumnMap: TTColumnMap); overload;
 
@@ -132,9 +139,11 @@ type
       const AFieldType: TFieldType);
 
     function CreateParameter(
+      const AConnectionID: String;
       const AFieldType: TFieldType;
       const AParam: TTParam): TTParameter; overload;
     function CreateParameter(
+      const AConnectionID: String;
       const AFieldType: TFieldType;
       const AParam: TTParam;
       const AColumnMap: TTColumnMap): TTParameter; overload;
@@ -153,18 +162,26 @@ implementation
 
 { TTParameter }
 
-constructor TTParameter.Create(const AParam: TTParam);
+constructor TTParameter.Create(
+  const AConnectionID: String; const AParam: TTParam);
 begin
-  Create(AParam, nil);
+  Create(FConnectionID, AParam, nil);
 end;
 
 constructor TTParameter.Create(
+  const AConnectionID: String;
   const AParam: TTParam;
   const AColumnMap: TTColumnMap);
 begin
   inherited Create;
+  FConnectionID := AConnectionID;
   FParam := AParam;
   FColumnMap := AColumnMap;
+end;
+
+procedure TTParameter.LogParameter(const AName: String; const AValue: String);
+begin
+  TTLogger.Instance.LogParameter(FConnectionID, AName, AValue);
 end;
 
 { TTStringParameter }
@@ -186,6 +203,7 @@ procedure TTStringParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<String>;
+  LParamValue: String;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -195,17 +213,24 @@ begin
       FParam.Clear()
     else
       SetParameterValue(AEntity, LNullable);
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    SetParameterValue(AEntity, LValue.AsType<String>());
+  begin
+    LParamValue := LValue.AsType<String>();
+    SetParameterValue(AEntity, LParamValue);
+  end;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsString);
+  LogParameter(FColumnMap.Name, LParamValue);
 end;
 
 procedure TTStringParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: String;
 begin
-  SetParameterValue(nil, AValue.AsType<String>());
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsString);
+  LParamValue := AValue.AsType<String>();
+  SetParameterValue(nil, LParamValue);
+  LogParameter(FParam.Name, LParamValue);
 end;
 
 { TTIntegerParameter }
@@ -215,6 +240,7 @@ var
   LIsClass: Boolean;
   LValue: TTValue;
   LNullable: TTNullable<Integer>;
+  LParamValue: Integer;
 begin
   LIsClass := FColumnMap.Member.IsClass;
   LValue := FColumnMap.Member.GetValue(AEntity);
@@ -225,26 +251,37 @@ begin
       FParam.Clear()
     else
       FParam.AsInteger := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else if LIsClass then
     SetValueFromObject(LValue.AsObject)
   else
-    FParam.AsInteger := LValue.AsType<Integer>();
+  begin
+    if LValue.Kind = TTypeKind.tkEnumeration then
+      LValue := LValue.AsOrdinal;
+
+    LParamValue := LValue.AsType<Integer>();
+    FParam.AsInteger := LParamValue;
+  end;
 
   if not LIsClass then
-    TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsInteger.ToString);
+    LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 procedure TTIntegerParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: Integer;
 begin
-  FParam.AsInteger := AValue.AsType<Integer>();
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsInteger.ToString);
+  LParamValue := AValue.AsType<Integer>();
+  FParam.AsInteger := LParamValue;
+  LogParameter(FParam.Name, LParamValue.ToString);
 end;
 
 procedure TTIntegerParameter.SetValueFromObject(const AObject: TObject);
 var
   LTableMap: TTTableMap;
   LValue: TTValue;
+  LParamValue: Integer;
 begin
   if TTRttiLazy.IsLazy(AObject) then
     LValue := FColumnMap.Member.GetValueFromObject(AObject)
@@ -257,9 +294,10 @@ begin
       raise ETException.Create(SPrimaryKeyNotDefined);
     LValue := LTableMap.PrimaryKey.Member.GetValue(AObject);
   end;
-  FParam.AsInteger := LValue.AsType<Integer>();
+  LParamValue := LValue.AsType<Integer>();
+  FParam.AsInteger := LParamValue;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsInteger.ToString);
+  LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 { TTLargeIntegerParameter }
@@ -268,6 +306,7 @@ procedure TTLargeIntegerParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Int64>;
+  LParamValue: Int64;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -277,17 +316,24 @@ begin
       FParam.Clear()
     else
       FParam.AsLargeInt := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    FParam.AsLargeInt := LValue.AsType<Int64>();
+  begin
+    LParamValue := LValue.AsType<Int64>();
+    FParam.AsLargeInt := LParamValue;
+  end;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsLargeInt.ToString);
+  LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 procedure TTLargeIntegerParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: Int64;
 begin
-  FParam.AsLargeInt := AValue.AsType<Int64>();
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsLargeInt.ToString);
+  LParamValue := AValue.AsType<Int64>();
+  FParam.AsLargeInt := LParamValue;
+  LogParameter(FParam.Name, LParamValue.ToString);
 end;
 
 { TTDoubleParameter }
@@ -296,6 +342,7 @@ procedure TTDoubleParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Double>;
+  LParamValue: Double;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -305,17 +352,24 @@ begin
       FParam.Clear()
     else
       FParam.AsDouble := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    FParam.AsDouble := LValue.AsType<Double>();
+  begin
+    LParamValue := LValue.AsType<Double>();
+    FParam.AsDouble := LParamValue;
+  end;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsDouble.ToString);
+  LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 procedure TTDoubleParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: Double;
 begin
-  FParam.AsDouble := AValue.AsType<Double>();
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsDouble.ToString);
+  LParamValue := AValue.AsType<Double>();
+  FParam.AsDouble := LParamValue;
+  LogParameter(FParam.Name, LParamValue.ToString);
 end;
 
 { TTBooleanParameter }
@@ -324,6 +378,7 @@ procedure TTBooleanParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<Boolean>;
+  LParamValue: Boolean;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -333,17 +388,24 @@ begin
       FParam.Clear()
     else
       FParam.AsBoolean := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    FParam.AsBoolean := LValue.AsType<Boolean>();
+  begin
+    LParamValue := LValue.AsType<Boolean>();
+    FParam.AsBoolean := LParamValue;
+  end;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsBoolean.ToString);
+  LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 procedure TTBooleanParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: Boolean;
 begin
-  FParam.AsBoolean := AValue.AsType<Boolean>();
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsBoolean.ToString);
+  LParamValue := AValue.AsType<Boolean>();
+  FParam.AsBoolean := LParamValue;
+  LogParameter(FParam.Name, LParamValue.ToString);
 end;
 
 { TTDateTimeParameter }
@@ -352,6 +414,7 @@ procedure TTDateTimeParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<TDateTime>;
+  LParamValue: TDateTime;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -361,18 +424,24 @@ begin
       FParam.Clear()
     else
       FParam.AsDateTime := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    FParam.AsDateTime := LValue.AsType<TDateTime>();
+  begin
+    LParamValue := LValue.AsType<TDateTime>();
+    FParam.AsDateTime := LParamValue;
+  end;
 
-  TTLogger.Instance.LogParameter(
-    FColumnMap.Name, DateTimeToStr(FParam.AsDateTime));
+  LogParameter(FColumnMap.Name, DateTimeToStr(LParamValue));
 end;
 
 procedure TTDateTimeParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: TDateTime;
 begin
-  FParam.AsDateTime := AValue.AsType<TDateTime>();
-  TTLogger.Instance.LogParameter(FParam.Name, DateTimeToStr(FParam.AsDateTime));
+  LParamValue := AValue.AsType<TDateTime>();
+  FParam.AsDateTime := LParamValue;
+  LogParameter(FParam.Name, DateTimeToStr(LParamValue));
 end;
 
 { TTGuidParameter }
@@ -381,6 +450,7 @@ procedure TTGuidParameter.SetValue(const AEntity: TObject);
 var
   LValue: TTValue;
   LNullable: TTNullable<TGuid>;
+  LParamValue: TGuid;
 begin
   LValue := FColumnMap.Member.GetValue(AEntity);
   if FColumnMap.Member.IsNullable then
@@ -390,29 +460,51 @@ begin
       FParam.Clear()
     else
       FParam.AsGuid := LNullable;
+    LParamValue := LNullable.GetValueOrDefault;
   end
   else
-    FParam.AsGuid := LValue.AsType<TGuid>();
+  begin
+    LParamValue := LValue.AsType<TGuid>();
+    FParam.AsGuid := LParamValue;
+  end;
 
-  TTLogger.Instance.LogParameter(FColumnMap.Name, FParam.AsGuid.ToString);
+  LogParameter(FColumnMap.Name, LParamValue.ToString);
 end;
 
 procedure TTGuidParameter.SetValue(const AValue: TTValue);
+var
+  LParamValue: TGuid;
 begin
-  FParam.AsGuid := AValue.AsType<TGuid>();
-  TTLogger.Instance.LogParameter(FParam.Name, FParam.AsGuid.ToString);
+  LParamValue := AValue.AsType<TGuid>();
+  FParam.AsGuid := LParamValue;
+  LogParameter(FParam.Name, LParamValue.ToString);
 end;
 
 { TTBlobParameter }
 
 procedure TTBlobParameter.SetValue(const AEntity: TObject);
+var
+  LValue: TTValue;
+  LNullable: TTNullable<TBytes>;
 begin
-  raise ETException.Create(SBlobParameterValue);
+  LValue := FColumnMap.Member.GetValue(AEntity);
+  if FColumnMap.Member.IsNullable then
+  begin
+    LNullable := LValue.AsType<TTNullable<TBytes>>();
+    if LNullable.IsNull then
+      FParam.Clear()
+    else
+      FParam.AsBytes := LNullable;
+  end
+  else
+    FParam.AsBytes := LValue.AsType<TBytes>();
+  // Blob parameters not logged
 end;
 
 procedure TTBlobParameter.SetValue(const AValue: TTValue);
 begin
-  raise ETException.Create(SBlobParameterValue);
+  FParam.AsBytes := AValue.AsType<TBytes>();
+  // Blob parameters not logged
 end;
 
 { TTParameterFactory }
@@ -447,12 +539,15 @@ begin
 end;
 
 function TTParameterFactory.CreateParameter(
-  const AFieldType: TFieldType; const AParam: TTParam): TTParameter;
+  const AConnectionID: String;
+  const AFieldType: TFieldType;
+  const AParam: TTParam): TTParameter;
 begin
-  result := CreateParameter(AFieldType, AParam, nil);
+  result := CreateParameter(AConnectionID, AFieldType, AParam, nil);
 end;
 
 function TTParameterFactory.CreateParameter(
+  const AConnectionID: String;
   const AFieldType: TFieldType;
   const AParam: TTParam;
   const AColumnMap: TTColumnMap): TTParameter;
@@ -462,7 +557,7 @@ begin
   if not FParameterTypes.TryGetValue(AFieldType, LClass) then
     raise ETException.CreateFmt(SParameterTypeError, [
       TRttiEnumerationType.GetName<TFieldType>(AFieldType)]);
-  result := TTParameterClass(LClass).Create(AParam, AColumnMap);
+  result := TTParameterClass(LClass).Create(AConnectionID, AParam, AColumnMap);
 end;
 
 { TTParameterRegister }
